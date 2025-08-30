@@ -1,0 +1,112 @@
+name: Threat Model Analysis Example
+# This is an example workflow showing how to use the Threagile action
+# Copy and modify for your own repository
+
+on:
+  pull_request:
+    paths:
+      - 'terraform/**'
+      - 'k8s/**'
+      - 'infrastructure/**'
+      - '.github/workflows/threat-model*.yml'
+  push:
+    branches: 
+      - main
+      - develop
+  workflow_dispatch:
+
+jobs:
+  threat-modeling:
+    name: Generate and Analyze Threat Model
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write  # Required for PR comments
+      
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        
+      - name: Run Threagile AI Analysis
+        id: threagile
+        uses: ./.github/actions/threagile  # Use local action for testing
+        # In your repo, use: uses: threagile/threagile-action@v1
+        with:
+          mode: simple
+          iac-dirs: 'terraform/,k8s/'
+          output-file: 'generated-threat-model.yaml'
+          context-files: 'CLAUDE.md'
+          comment-on-pr: true
+          fail-on-high-risk: false  # Set to true for production
+          
+      - name: Report Results
+        if: always()
+        run: |
+          echo "Threat Model Analysis Complete"
+          echo "Total Risks: ${{ steps.threagile.outputs.risks-found }}"
+          echo "High/Critical Risks: ${{ steps.threagile.outputs.high-risks }}"
+          echo "Model Path: ${{ steps.threagile.outputs.model-path }}"
+          
+      - name: Upload Threat Model Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: threat-model-${{ github.sha }}
+          path: |
+            generated-threat-model.yaml
+            report.pdf
+            risks.xlsx
+            risks.json
+            *.png
+          retention-days: 30
+          
+      - name: Cache Threat Model (Main Branch)
+        if: github.ref == 'refs/heads/main'
+        uses: actions/cache@v3
+        with:
+          path: generated-threat-model.yaml
+          key: threat-model-main-${{ github.sha }}
+          
+  # Optional: Compare with previous model
+  threat-model-drift:
+    name: Check Threat Model Drift
+    runs-on: ubuntu-latest
+    needs: threat-modeling
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        
+      - name: Restore Previous Model
+        id: cache
+        uses: actions/cache@v3
+        with:
+          path: previous-model.yaml
+          key: threat-model-main-
+          restore-keys: |
+            threat-model-main-
+            
+      - name: Download Current Model
+        uses: actions/download-artifact@v4
+        with:
+          name: threat-model-${{ github.sha }}
+          
+      - name: Compare Models
+        if: steps.cache.outputs.cache-hit == 'true'
+        run: |
+          echo "Comparing threat models for drift..."
+          # Add comparison logic here
+          
+  # Optional: Security team notification
+  notify-security:
+    name: Notify Security Team
+    runs-on: ubuntu-latest
+    needs: threat-modeling
+    if: failure() || steps.threagile.outputs.high-risks > 0
+    
+    steps:
+      - name: Send Notification
+        run: |
+          echo "High risks detected! Notifying security team..."
+          # Add notification logic (Slack, email, etc.)

@@ -39,3 +39,4 @@ stats.json
 # Claude-related files
 .claude/
 CLAUDE.md
+claude_TODO.md

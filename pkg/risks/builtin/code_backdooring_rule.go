@@ -31,8 +31,8 @@ func (*CodeBackdooringRule) Category() *types.RiskCategory {
 		DetectionLogic: "In-scope development relevant technical assets which are either accessed by out-of-scope unmanaged " +
 			"developer clients and/or are directly accessed by any kind of internet-located (non-VPN) component or are themselves directly located " +
 			"on the internet.",
-		RiskAssessment: "The risk rating depends on the confidentiality and integrity rating of the code being handled and deployed " +
-			"as well as the placement/calling of this technical asset on/from the internet.", // TODO also take the CIA rating of the deployment targets (and their data) into account?
+		RiskAssessment: "The risk rating depends on the confidentiality and integrity rating of the code being handled and deployed, " +
+			"the CIA ratings of the deployment targets and their data assets, as well as the placement/calling of this technical asset on/from the internet.",
 		FalsePositives: "When the build-pipeline and sourcecode-repo is not exposed to the internet and considered fully " +
 			"trusted (which implies that all accessing clients are also considered fully trusted in terms of their patch management " +
 			"and applied hardening, which must be equivalent to a managed developer client environment) this can be considered a false positive " +
@@ -79,6 +79,12 @@ func (r *CodeBackdooringRule) createRisk(input *types.Model, technicalAsset *typ
 			impact = types.HighImpact
 		}
 	}
+	
+	// Consider CIA ratings of deployment targets
+	highestTargetConfidentiality := types.Public
+	highestTargetIntegrity := types.Archive
+	highestTargetAvailability := types.Archive
+	
 	// data breach at all deployment targets
 	uniqueDataBreachTechnicalAssetIDs := make(map[string]interface{})
 	uniqueDataBreachTechnicalAssetIDs[technicalAsset.Id] = true
@@ -91,9 +97,35 @@ func (r *CodeBackdooringRule) createRisk(input *types.Model, technicalAsset *typ
 			if input.DataAssets[dataAssetID].Integrity >= types.Important {
 				// here we've got a deployment target which has its data assets at risk via deployment of backdoored code
 				uniqueDataBreachTechnicalAssetIDs[codeDeploymentTargetCommLink.TargetId] = true
+				
+				// Track highest CIA ratings of deployment targets
+				target := input.TechnicalAssets[codeDeploymentTargetCommLink.TargetId]
+				targetConfidentiality := input.HighestProcessedConfidentiality(target)
+				targetIntegrity := input.HighestProcessedIntegrity(target)
+				targetAvailability := input.HighestProcessedAvailability(target)
+				
+				if targetConfidentiality > highestTargetConfidentiality {
+					highestTargetConfidentiality = targetConfidentiality
+				}
+				if targetIntegrity > highestTargetIntegrity {
+					highestTargetIntegrity = targetIntegrity
+				}
+				if targetAvailability > highestTargetAvailability {
+					highestTargetAvailability = targetAvailability
+				}
 				break
 			}
 		}
+	}
+	
+	// Escalate impact based on deployment target CIA ratings
+	if highestTargetConfidentiality >= types.Confidential || highestTargetIntegrity >= types.Critical || highestTargetAvailability >= types.Critical {
+		if impact < types.HighImpact {
+			impact = types.HighImpact
+		}
+	}
+	if highestTargetConfidentiality == types.StrictlyConfidential || highestTargetIntegrity == types.MissionCritical || highestTargetAvailability == types.MissionCritical {
+		impact = types.VeryHighImpact
 	}
 	dataBreachTechnicalAssetIDs := make([]string, 0)
 	for key := range uniqueDataBreachTechnicalAssetIDs {

@@ -27,7 +27,10 @@ func (*UnencryptedCommunicationRule) Category() *types.RiskCategory {
 		Function:   types.Operations,
 		STRIDE:     types.InformationDisclosure,
 		DetectionLogic: "Unencrypted technical communication links of in-scope technical assets (excluding " + types.Monitoring + " traffic as well as " + types.LocalFileAccess.String() + ", " + types.InProcessLibraryCall.String() + " and " + types.InterProcessCommunication.String() + ") " +
-			"transferring sensitive data.", // TODO more detailed text required here
+			"transferring sensitive data. This includes any communication channel without transport layer encryption (TLS/SSL) where confidential, " +
+			"restricted, or sensitive business data is transmitted. The risk is identified when protocols lacking encryption " +
+			"(like HTTP, FTP, Telnet, SMTP without STARTTLS, etc.) are used for data transfer containing assets with " +
+			"confidentiality ratings of 'confidential' or higher.",
 		RiskAssessment: "Depending on the confidentiality rating of the transferred data-assets either medium or high risk.",
 		FalsePositives: "When all sensitive data sent over the communication link is already fully encrypted on document or data level. " +
 			"Also intra-container/pod communication can be considered false positive when container orchestration platform handles encryption.",

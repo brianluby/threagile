@@ -369,8 +369,8 @@ func (r *MissingCloudHardeningRule) createCloudHardeningRisk(id, title, prefix, 
 		Title:                       fullTitle,
 		DataBreachProbability:       types.Probable,
 		DataBreachTechnicalAssetIDs: relatedAssets,
-		SyntheticId:                 r.Category().ID + "@" + id + suffix,
 	}
+	risk.SyntheticId = risk.CategoryId + "@" + id + suffix
 	return risk
 }
 

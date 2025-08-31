@@ -64,6 +64,38 @@ func (r *XmlExternalEntityRule) createRisk(parsedModel *types.Model, technicalAs
 		parsedModel.HighestProcessedAvailability(technicalAsset) == types.MissionCritical {
 		impact = types.HighImpact
 	}
+	
+	// XXE can also be used as SSRF - collect all potential attack targets within the same trust boundary (accessible via web protocols)
+	uniqueDataBreachTechnicalAssetIDs := make(map[string]interface{})
+	uniqueDataBreachTechnicalAssetIDs[technicalAsset.Id] = true
+	for _, potentialTargetAsset := range parsedModel.TechnicalAssets {
+		if !isSameTrustBoundaryNetworkOnly(parsedModel, technicalAsset, potentialTargetAsset.Id) {
+			continue
+		}
+		for _, commLinkIncoming := range parsedModel.IncomingTechnicalCommunicationLinksMappedByTargetId[potentialTargetAsset.Id] {
+			if !commLinkIncoming.Protocol.IsPotentialWebAccessProtocol() {
+				continue
+			}
+			uniqueDataBreachTechnicalAssetIDs[potentialTargetAsset.Id] = true
+			if parsedModel.HighestProcessedConfidentiality(potentialTargetAsset) == types.StrictlyConfidential {
+				if impact < types.HighImpact {
+					impact = types.HighImpact
+				}
+			}
+		}
+	}
+	
+	// adjust for cloud-based special risks (XXE can be used to access cloud metadata endpoints)
+	trustBoundaryId := parsedModel.GetTechnicalAssetTrustBoundaryId(technicalAsset)
+	if impact == types.MediumImpact && len(trustBoundaryId) > 0 && parsedModel.TrustBoundaries[trustBoundaryId].Type.IsWithinCloud() {
+		impact = types.HighImpact
+	}
+	
+	dataBreachTechnicalAssetIDs := make([]string, 0)
+	for key := range uniqueDataBreachTechnicalAssetIDs {
+		dataBreachTechnicalAssetIDs = append(dataBreachTechnicalAssetIDs, key)
+	}
+	
 	risk := &types.Risk{
 		CategoryId:                   r.Category().ID,
 		Severity:                     types.CalculateSeverity(types.VeryLikely, impact),
@@ -72,7 +104,7 @@ func (r *XmlExternalEntityRule) createRisk(parsedModel *types.Model, technicalAs
 		Title:                        title,
 		MostRelevantTechnicalAssetId: technicalAsset.Id,
 		DataBreachProbability:        types.Probable,
-		DataBreachTechnicalAssetIDs:  []string{technicalAsset.Id}, // TODO: use the same logic here as for SSRF rule, as XXE is also SSRF ;)
+		DataBreachTechnicalAssetIDs:  dataBreachTechnicalAssetIDs,
 	}
 	risk.SyntheticId = risk.CategoryId + "@" + technicalAsset.Id
 	return risk

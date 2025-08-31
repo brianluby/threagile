@@ -1,3 +1,6 @@
+// Package ai provides AI-powered threat model generation including
+// advanced trust boundary detection using graph algorithms and
+// pattern recognition.
 package ai
 
 import (
@@ -9,42 +12,80 @@ import (
 	"github.com/threagile/threagile/pkg/types"
 )
 
-// BoundaryDetector implements advanced trust boundary detection algorithms
+// BoundaryDetector implements advanced trust boundary detection algorithms.
+// Trust boundaries represent transitions between different levels of trust
+// in a system and are critical for threat modeling.
+//
+// The detector uses multiple approaches:
+//   - Graph-based community detection
+//   - Network topology analysis
+//   - IAM permission boundaries
+//   - Security zone identification
+//   - Data flow analysis
+//   - Compliance scope detection
+//
+// The graph representation enables sophisticated algorithms like:
+//   - Spectral clustering
+//   - Minimum cut analysis
+//   - Centrality-based detection
+//   - Community detection
 type BoundaryDetector struct {
-	// Graph representation of the infrastructure
+	// nodes stores all infrastructure components as graph nodes
 	nodes map[string]*GraphNode
+	// edges stores connections between components
 	edges map[string][]*GraphEdge
 }
 
-// GraphNode represents a node in the infrastructure graph
+// GraphNode represents an infrastructure component in the graph model.
+// Each node contains security-relevant attributes used for boundary detection.
 type GraphNode struct {
+	// ID uniquely identifies the infrastructure component
 	ID         string
+	// Type categorizes the component (compute, storage, network, etc.)
 	Type       string
+	// Properties stores additional metadata for analysis
 	Properties map[string]interface{}
+	// TrustLevel indicates the security trust score (0.0 to 1.0)
 	TrustLevel float64
+	// Zone identifies the security zone (public, private, dmz)
 	Zone       string
+	// Provider indicates the infrastructure provider (aws, azure, gcp)
 	Provider   string
 }
 
-// GraphEdge represents an edge between nodes
+// GraphEdge represents a connection or relationship between infrastructure components.
+// Edges carry security-relevant information about data flows and dependencies.
 type GraphEdge struct {
+	// Source node ID (originator of connection)
 	Source     string
+	// Target node ID (destination of connection)
 	Target     string
+	// Weight represents connection strength or trust level (0.0 to 1.0)
 	Weight     float64
+	// Type categorizes the connection (network, iam, data-flow)
 	Type       string
+	// Properties stores additional edge metadata
 	Properties map[string]interface{}
 }
 
-// Community represents a detected community in the graph
+// Community represents a group of closely connected infrastructure components.
+// Communities often indicate natural trust boundaries in the system.
 type Community struct {
+	// ID uniquely identifies the community
 	ID       string
+	// Nodes lists all component IDs in this community
 	Nodes    []string
+	// Boundary indicates if this forms a trust boundary
 	Boundary bool
+	// Type categorizes the community (network, functional, compliance)
 	Type     string
+	// Trust represents the aggregate trust level
 	Trust    float64
 }
 
-// NewBoundaryDetector creates a new trust boundary detector
+// NewBoundaryDetector creates a new trust boundary detector instance.
+// The detector initializes with empty graph structures that will be
+// populated during the analysis phase.
 func NewBoundaryDetector() *BoundaryDetector {
 	return &BoundaryDetector{
 		nodes: make(map[string]*GraphNode),
@@ -52,54 +93,98 @@ func NewBoundaryDetector() *BoundaryDetector {
 	}
 }
 
-// DetectBoundaries detects trust boundaries in the infrastructure
+// DetectBoundaries orchestrates multiple algorithms to identify trust boundaries.
+// This comprehensive approach ensures no critical boundaries are missed.
+//
+// Detection process:
+//   1. Build graph representation of infrastructure
+//   2. Apply seven different detection algorithms
+//   3. Merge and deduplicate results
+//   4. Validate and rank by importance
+//
+// Detection algorithms:
+//   - Network topology: VPCs, subnets, security groups
+//   - IAM boundaries: Permission boundaries, account separation
+//   - Provider boundaries: Multi-cloud, hybrid environments
+//   - Security zones: DMZ, public, private, management
+//   - Graph communities: Tightly coupled components
+//   - Data flows: Information flow analysis
+//   - Compliance scopes: Regulatory boundaries
+//
+// Parameters:
+//   - model: The threat model being analyzed
+//   - results: Parsed infrastructure data
+//
+// Returns:
+//   - Detected and validated trust boundaries
+//   - Error if detection fails
 func (d *BoundaryDetector) DetectBoundaries(model *types.Model, results []*ParseResult) ([]*types.TrustBoundary, error) {
-	// Build graph from infrastructure
+	// Phase 1: Build graph representation for analysis
 	d.buildGraph(model, results)
 	
-	// Apply multiple detection algorithms
+	// Phase 2: Apply multiple detection algorithms in parallel
 	boundaries := []*types.TrustBoundary{}
 	
-	// 1. Network-based detection
+	// Algorithm 1: Detect boundaries based on network isolation
 	networkBoundaries := d.detectNetworkBoundaries(results)
 	boundaries = append(boundaries, networkBoundaries...)
 	
-	// 2. IAM-based detection
+	// Algorithm 2: Detect IAM permission boundaries
 	iamBoundaries := d.detectIAMBoundaries(results)
 	boundaries = append(boundaries, iamBoundaries...)
 	
-	// 3. Provider-based detection
+	// Algorithm 3: Detect cloud provider boundaries
 	providerBoundaries := d.detectProviderBoundaries(results)
 	boundaries = append(boundaries, providerBoundaries...)
 	
-	// 4. Security zone detection
+	// Algorithm 4: Detect security zone boundaries
 	zoneBoundaries := d.detectSecurityZoneBoundaries(model, results)
 	boundaries = append(boundaries, zoneBoundaries...)
 	
-	// 5. Community-based detection using graph algorithms
+	// Algorithm 5: Use graph algorithms for community detection
 	communityBoundaries := d.detectCommunityBoundaries()
 	boundaries = append(boundaries, communityBoundaries...)
 	
-	// 6. Data flow-based detection
+	// Algorithm 6: Analyze data flows for boundaries
 	dataFlowBoundaries := d.detectDataFlowBoundaries(model)
 	boundaries = append(boundaries, dataFlowBoundaries...)
 	
-	// 7. Compliance-based boundaries
+	// Algorithm 7: Identify compliance-driven boundaries
 	complianceBoundaries := d.detectComplianceBoundaries(model, results)
 	boundaries = append(boundaries, complianceBoundaries...)
 	
-	// Merge and deduplicate boundaries
+	// Phase 3: Consolidate detected boundaries
+	// Remove duplicates and merge overlapping boundaries
 	boundaries = d.mergeBoundaries(boundaries)
 	
-	// Validate and rank boundaries
+	// Phase 4: Validate and prioritize boundaries
+	// Rank by security importance and coverage
 	boundaries = d.validateAndRankBoundaries(boundaries, model)
 	
 	return boundaries, nil
 }
 
-// buildGraph builds a graph representation of the infrastructure
+// buildGraph constructs a graph representation of the infrastructure for analysis.
+// The graph model enables sophisticated algorithms for boundary detection.
+//
+// Graph construction process:
+//   1. Convert technical assets to nodes with security attributes
+//   2. Convert communication links to weighted edges
+//   3. Add infrastructure-specific nodes and edges
+//   4. Calculate trust levels and zones
+//
+// The resulting graph captures:
+//   - Component relationships
+//   - Trust levels
+//   - Security zones
+//   - Data flows
+//   - Provider boundaries
+//
+// Parameters:
+//   - model: The threat model containing assets and links
+//   - results: Parsed infrastructure data
 func (d *BoundaryDetector) buildGraph(model *types.Model, results []*ParseResult) {
-	// Add nodes for technical assets
+	// Convert each technical asset to a graph node
 	for id, asset := range model.TechnicalAssets {
 		d.nodes[id] = &GraphNode{
 			ID:         id,
@@ -111,7 +196,8 @@ func (d *BoundaryDetector) buildGraph(model *types.Model, results []*ParseResult
 		}
 	}
 	
-	// Add edges for communication links
+	// Transform communication links into graph edges
+	// Edge weights represent trust levels between components
 	for _, link := range model.CommunicationLinks {
 		edge := &GraphEdge{
 			Source:     link.SourceId,
@@ -121,6 +207,7 @@ func (d *BoundaryDetector) buildGraph(model *types.Model, results []*ParseResult
 			Properties: d.linkToProperties(link),
 		}
 		
+		// Build adjacency list representation
 		if d.edges[link.SourceId] == nil {
 			d.edges[link.SourceId] = []*GraphEdge{}
 		}
@@ -134,19 +221,39 @@ func (d *BoundaryDetector) buildGraph(model *types.Model, results []*ParseResult
 	}
 }
 
-// detectNetworkBoundaries detects boundaries based on network segmentation
+// detectNetworkBoundaries identifies trust boundaries based on network isolation.
+// Network segmentation is a fundamental security control that creates natural
+// trust boundaries in cloud infrastructure.
+//
+// Detection criteria:
+//   - VPC boundaries: Isolated virtual networks
+//   - Subnet groupings: Public vs private subnets
+//   - Security group perimeters: Firewall rule sets
+//   - Network ACLs: Subnet-level controls
+//
+// Network boundaries are strong indicators because:
+//   - They enforce traffic isolation
+//   - They require explicit peering/gateways to cross
+//   - They often align with security zones
+//   - They support compliance requirements
+//
+// Parameters:
+//   - results: Parsed infrastructure containing network resources
+//
+// Returns:
+//   - Trust boundaries based on network topology
 func (d *BoundaryDetector) detectNetworkBoundaries(results []*ParseResult) []*types.TrustBoundary {
 	boundaries := []*types.TrustBoundary{}
 	
 	for _, result := range results {
-		// VPC boundaries
+		// VPCs form primary network boundaries in cloud environments
 		for id, network := range result.Networks {
 			if network.Type == "vpc" {
 				boundary := &types.TrustBoundary{
 					Id:          fmt.Sprintf("network-%s", id),
 					Title:       fmt.Sprintf("%s Network Boundary", network.Name),
 					Description: fmt.Sprintf("Network boundary for %s", network.Name),
-					Type:        types.TrustBoundaryType("network-cloud-provider"),
+					Type:        types.NetworkCloudProvider,
 					Tags: []string{
 						fmt.Sprintf("provider:%s", network.Provider),
 						fmt.Sprintf("type:%s", network.Type),
@@ -160,7 +267,8 @@ func (d *BoundaryDetector) detectNetworkBoundaries(results []*ParseResult) []*ty
 			}
 		}
 		
-		// Subnet boundaries
+		// Group subnets by type to detect zone-based boundaries
+		// Public/private subnet separation is a common pattern
 		subnets := d.groupSubnetsByType(result.Networks)
 		for subnetType, networks := range subnets {
 			if len(networks) > 0 {
@@ -168,7 +276,7 @@ func (d *BoundaryDetector) detectNetworkBoundaries(results []*ParseResult) []*ty
 					Id:          fmt.Sprintf("subnet-group-%s", subnetType),
 					Title:       fmt.Sprintf("%s Subnet Group", strings.Title(subnetType)),
 					Description: fmt.Sprintf("Subnet grouping for %s networks", subnetType),
-					Type:        types.TrustBoundaryType("network-cloud-provider"),
+					Type:        types.NetworkCloudProvider,
 					Tags: []string{
 						fmt.Sprintf("subnet-type:%s", subnetType),
 						"detection:subnet-grouping",
@@ -190,22 +298,41 @@ func (d *BoundaryDetector) detectNetworkBoundaries(results []*ParseResult) []*ty
 	return boundaries
 }
 
-// detectIAMBoundaries detects boundaries based on IAM configurations
+// detectIAMBoundaries identifies trust boundaries based on identity and access management.
+// IAM boundaries represent permission isolation and are critical for least privilege.
+//
+// Detection criteria:
+//   - IAM role boundaries: Resources sharing same permissions
+//   - Service account isolation: Workload identities
+//   - Permission boundaries: Maximum permission sets
+//   - Cross-account roles: External trust relationships
+//
+// IAM boundaries are important because:
+//   - They control resource access
+//   - They prevent privilege escalation
+//   - They enforce separation of duties
+//   - They support compliance requirements
+//
+// Parameters:
+//   - results: Parsed infrastructure containing IAM resources
+//
+// Returns:
+//   - Trust boundaries based on IAM configuration
 func (d *BoundaryDetector) detectIAMBoundaries(results []*ParseResult) []*types.TrustBoundary {
 	boundaries := []*types.TrustBoundary{}
 	
 	for _, result := range results {
-		// Group resources by IAM roles
+		// Resources sharing IAM roles form natural boundaries
 		roleGroups := d.groupResourcesByIAMRole(result)
 		
 		for roleID, resources := range roleGroups {
-			if len(resources) > 1 { // Only create boundary if multiple resources share a role
+			if len(resources) > 1 { // Multiple resources indicate shared permissions
 				role := result.Roles[roleID]
 				boundary := &types.TrustBoundary{
 					Id:          fmt.Sprintf("iam-%s", roleID),
 					Title:       fmt.Sprintf("IAM Boundary: %s", role.Name),
 					Description: fmt.Sprintf("Resources sharing IAM role %s", role.Name),
-					Type:        types.TrustBoundaryType("execution-environment"),
+					Type:        types.ExecutionEnvironment,
 					Tags: []string{
 						fmt.Sprintf("role:%s", role.Name),
 						"detection:iam",
@@ -227,11 +354,28 @@ func (d *BoundaryDetector) detectIAMBoundaries(results []*ParseResult) []*types.
 	return boundaries
 }
 
-// detectProviderBoundaries detects boundaries between different cloud providers
+// detectProviderBoundaries identifies trust boundaries between cloud providers.
+// Multi-cloud and hybrid deployments create natural boundaries due to:
+//   - Different security models
+//   - Separate identity systems  
+//   - Incompatible networking
+//   - Provider-specific controls
+//
+// Provider boundaries are significant because:
+//   - They require explicit integration (VPN, peering)
+//   - They have different compliance certifications
+//   - They use incompatible IAM systems
+//   - They may have data residency implications
+//
+// Parameters:
+//   - results: Parsed infrastructure from multiple providers
+//
+// Returns:
+//   - Trust boundaries between cloud providers
 func (d *BoundaryDetector) detectProviderBoundaries(results []*ParseResult) []*types.TrustBoundary {
 	boundaries := []*types.TrustBoundary{}
 	
-	// Group resources by provider
+	// Group all resources by their cloud provider
 	providerGroups := make(map[string][]string)
 	
 	for _, result := range results {
@@ -250,7 +394,7 @@ func (d *BoundaryDetector) detectProviderBoundaries(results []*ParseResult) []*t
 				Id:          fmt.Sprintf("provider-%s", provider),
 				Title:       fmt.Sprintf("%s Provider Boundary", strings.ToUpper(provider)),
 				Description: fmt.Sprintf("Resources in %s cloud provider", provider),
-				Type:        types.TrustBoundaryType("network-cloud-provider"),
+				Type:        types.NetworkCloudProvider,
 				Tags: []string{
 					fmt.Sprintf("provider:%s", provider),
 					"detection:provider",
@@ -264,38 +408,58 @@ func (d *BoundaryDetector) detectProviderBoundaries(results []*ParseResult) []*t
 	return boundaries
 }
 
-// detectSecurityZoneBoundaries detects boundaries based on security zones
+// detectSecurityZoneBoundaries identifies boundaries based on security zone classification.
+// Security zones represent areas with similar trust levels and security requirements.
+//
+// Standard security zones:
+//   - Public: Internet-facing, untrusted
+//   - DMZ: Semi-trusted buffer zone
+//   - Private: Internal trusted resources
+//   - Restricted: Highly sensitive systems
+//
+// Zone boundaries are critical because:
+//   - They define defense-in-depth layers
+//   - They enforce traffic flow restrictions
+//   - They align with compliance requirements
+//   - They guide security control placement
+//
+// Parameters:
+//   - model: Threat model with classified assets
+//   - results: Infrastructure data for zone inference
+//
+// Returns:
+//   - Trust boundaries for each security zone
 func (d *BoundaryDetector) detectSecurityZoneBoundaries(model *types.Model, results []*ParseResult) []*types.TrustBoundary {
 	boundaries := []*types.TrustBoundary{}
 	
-	// Define security zones
+	// Define standard security zones with trust levels
 	zones := map[string]*types.TrustBoundary{
 		"public": {
 			Id:          "zone-public",
 			Title:       "Public Zone",
 			Description: "Internet-facing resources",
-			Type:        types.TrustBoundaryType("network-on-prem"),
+			Type:        types.NetworkOnPrem,
 			Tags:        []string{"zone:public", "detection:security-zone"},
 		},
 		"dmz": {
 			Id:          "zone-dmz",
 			Title:       "DMZ Zone",
 			Description: "Demilitarized zone resources",
-			Type:        types.TrustBoundaryType("network-on-prem"),
+			Type:        types.NetworkOnPrem,
 			Tags:        []string{"zone:dmz", "detection:security-zone"},
 		},
 		"private": {
 			Id:          "zone-private",
 			Title:       "Private Zone",
 			Description: "Internal resources",
-			Type:        types.TrustBoundaryType("network-on-prem"),
+			Type:        types.NetworkOnPrem,
 			Tags:        []string{"zone:private", "detection:security-zone"},
 		},
 		"restricted": {
 			Id:          "zone-restricted",
 			Title:       "Restricted Zone",
 			Description: "Highly sensitive resources",
-			Type:        types.TrustBoundaryType("network-on-prem"),
+			Type:        types.NetworkOnPrem,
 			Tags:        []string{"zone:restricted", "detection:security-zone"},
 		},
 	}
@@ -318,11 +482,27 @@ func (d *BoundaryDetector) detectSecurityZoneBoundaries(model *types.Model, resu
 	return boundaries
 }
 
-// detectCommunityBoundaries uses graph algorithms to detect community boundaries
+// detectCommunityBoundaries uses graph algorithms to find tightly coupled components.
+// Community detection reveals natural groupings that may represent trust boundaries.
+//
+// Algorithm approach (simplified Louvain method):
+//   1. Initialize each node as its own community
+//   2. Iteratively merge communities to maximize modularity
+//   3. Identify communities with high internal connectivity
+//   4. Mark boundaries between distinct communities
+//
+// Communities indicate boundaries when:
+//   - High internal connectivity, low external
+//   - Different trust levels between communities
+//   - Natural functional groupings
+//   - Minimal cross-community dependencies
+//
+// Returns:
+//   - Trust boundaries around detected communities
 func (d *BoundaryDetector) detectCommunityBoundaries() []*types.TrustBoundary {
 	boundaries := []*types.TrustBoundary{}
 	
-	// Apply community detection algorithm (simplified Louvain method)
+	// Apply graph-based community detection algorithm
 	communities := d.detectCommunities()
 	
 	for _, community := range communities {
@@ -331,7 +511,7 @@ func (d *BoundaryDetector) detectCommunityBoundaries() []*types.TrustBoundary {
 				Id:          fmt.Sprintf("community-%s", community.ID),
 				Title:       fmt.Sprintf("Community Boundary %s", community.ID),
 				Description: fmt.Sprintf("Detected community of related resources"),
-				Type:        types.TrustBoundaryType("execution-environment"),
+				Type:        types.ExecutionEnvironment,
 				Tags: []string{
 					fmt.Sprintf("community:%s", community.ID),
 					fmt.Sprintf("trust:%.2f", community.Trust),
@@ -346,20 +526,39 @@ func (d *BoundaryDetector) detectCommunityBoundaries() []*types.TrustBoundary {
 	return boundaries
 }
 
-// detectDataFlowBoundaries detects boundaries based on data flow patterns
+// detectDataFlowBoundaries identifies boundaries based on information flow analysis.
+// Components with heavy data exchange often share trust requirements.
+//
+// Data flow analysis considers:
+//   - Volume of data exchanged
+//   - Sensitivity of data
+//   - Bidirectional vs unidirectional flows
+//   - Data transformation points
+//
+// Boundaries are created where:
+//   - Data sensitivity changes
+//   - Data leaves security zones
+//   - Significant aggregation occurs
+//   - Data format transformations happen
+//
+// Parameters:
+//   - model: Threat model with communication links
+//
+// Returns:
+//   - Trust boundaries based on data flow patterns
 func (d *BoundaryDetector) detectDataFlowBoundaries(model *types.Model) []*types.TrustBoundary {
 	boundaries := []*types.TrustBoundary{}
 	
-	// Analyze data flow patterns
+	// Group assets by data flow intensity and patterns
 	dataFlowGroups := d.analyzeDataFlowPatterns(model)
 	
 	for groupID, assets := range dataFlowGroups {
-		if len(assets) > 2 { // Only create boundary for significant groups
+		if len(assets) > 2 { // Significant groups only
 			boundary := &types.TrustBoundary{
 				Id:          fmt.Sprintf("dataflow-%s", groupID),
 				Title:       fmt.Sprintf("Data Flow Boundary %s", groupID),
 				Description: "Resources with significant data exchange",
-				Type:        types.TrustBoundaryType("execution-environment"),
+				Type:        types.ExecutionEnvironment,
 				Tags: []string{
 					fmt.Sprintf("dataflow:%s", groupID),
 					"detection:dataflow",
@@ -373,31 +572,56 @@ func (d *BoundaryDetector) detectDataFlowBoundaries(model *types.Model) []*types
 	return boundaries
 }
 
-// detectComplianceBoundaries detects boundaries based on compliance requirements
+// detectComplianceBoundaries identifies boundaries driven by regulatory requirements.
+// Compliance frameworks mandate specific security controls and isolation.
+//
+// Supported frameworks:
+//   - PCI-DSS: Payment card industry data security
+//   - HIPAA: Healthcare information privacy
+//   - GDPR: EU data protection regulation
+//   - SOC2: Service organization controls
+//
+// Compliance boundaries ensure:
+//   - Required controls are implemented
+//   - Data is properly isolated
+//   - Audit scope is defined
+//   - Regulatory requirements are met
+//
+// Detection based on:
+//   - Data type classification
+//   - Resource tags
+//   - Industry patterns
+//
+// Parameters:
+//   - model: Threat model with compliance indicators
+//   - results: Infrastructure data
+//
+// Returns:
+//   - Trust boundaries for compliance scopes
 func (d *BoundaryDetector) detectComplianceBoundaries(model *types.Model, results []*ParseResult) []*types.TrustBoundary {
 	boundaries := []*types.TrustBoundary{}
 	
-	// Define compliance boundaries
+	// Define regulatory compliance boundaries
 	complianceZones := map[string]*types.TrustBoundary{
 		"pci": {
 			Id:          "compliance-pci",
 			Title:       "PCI Compliance Boundary",
 			Description: "Resources handling payment card data",
-			Type:        types.TrustBoundaryType("execution-environment"),
+			Type:        types.ExecutionEnvironment,
 			Tags:        []string{"compliance:pci-dss", "detection:compliance"},
 		},
 		"hipaa": {
 			Id:          "compliance-hipaa",
 			Title:       "HIPAA Compliance Boundary",
 			Description: "Resources handling protected health information",
-			Type:        types.TrustBoundaryType("execution-environment"),
+			Type:        types.ExecutionEnvironment,
 			Tags:        []string{"compliance:hipaa", "detection:compliance"},
 		},
 		"gdpr": {
 			Id:          "compliance-gdpr",
 			Title:       "GDPR Compliance Boundary",
 			Description: "Resources handling personal data",
-			Type:        types.TrustBoundaryType("execution-environment"),
+			Type:        types.ExecutionEnvironment,
 			Tags:        []string{"compliance:gdpr", "detection:compliance"},
 		},
 	}
@@ -422,7 +646,30 @@ func (d *BoundaryDetector) detectComplianceBoundaries(model *types.Model, result
 	return boundaries
 }
 
-// mergeBoundaries merges overlapping boundaries
+// mergeBoundaries consolidates overlapping boundaries to avoid redundancy.
+// Multiple detection algorithms may identify similar boundaries.
+//
+// Merge criteria:
+//   - Asset overlap > 80%
+//   - Compatible boundary types
+//   - Similar trust levels
+//
+// Merge process:
+//   1. Calculate overlap between all boundary pairs
+//   2. Merge highly overlapping boundaries
+//   3. Combine metadata and tags
+//   4. Preserve the most specific boundary type
+//
+// This prevents:
+//   - Duplicate boundaries
+//   - Overlapping controls
+//   - Confusion in threat model
+//
+// Parameters:
+//   - boundaries: All detected boundaries
+//
+// Returns:
+//   - Consolidated list of unique boundaries
 func (d *BoundaryDetector) mergeBoundaries(boundaries []*types.TrustBoundary) []*types.TrustBoundary {
 	merged := []*types.TrustBoundary{}
 	processed := make(map[string]bool)
@@ -432,16 +679,17 @@ func (d *BoundaryDetector) mergeBoundaries(boundaries []*types.TrustBoundary) []
 			continue
 		}
 		
-		// Check for overlapping boundaries
+		// Compare with all subsequent boundaries
 		for j := i + 1; j < len(boundaries); j++ {
 			other := boundaries[j]
 			if processed[other.Id] {
 				continue
 			}
 			
+			// Check if boundaries significantly overlap
 			overlap := d.calculateOverlap(boundary, other)
-			if overlap > 0.8 { // 80% overlap threshold
-				// Merge boundaries
+			if overlap > 0.8 { // 80% threshold
+				// Combine overlapping boundaries
 				boundary = d.mergeTwoBoundaries(boundary, other)
 				processed[other.Id] = true
 			}
@@ -454,9 +702,36 @@ func (d *BoundaryDetector) mergeBoundaries(boundaries []*types.TrustBoundary) []
 	return merged
 }
 
-// validateAndRankBoundaries validates and ranks boundaries by importance
+// validateAndRankBoundaries prioritizes boundaries by security importance.
+// Not all boundaries are equally critical for threat modeling.
+//
+// Scoring factors:
+//   - Number of assets protected
+//   - Sensitivity of data involved
+//   - Attack surface reduction
+//   - Compliance requirements
+//   - Network isolation strength
+//   - Detection confidence
+//
+// Validation checks:
+//   - Minimum asset coverage
+//   - Logical consistency
+//   - No empty boundaries
+//   - Proper type assignment
+//
+// Ranking ensures:
+//   - Critical boundaries are highlighted
+//   - Resources focus on important boundaries
+//   - Low-value boundaries are filtered
+//
+// Parameters:
+//   - boundaries: All detected boundaries
+//   - model: Threat model for context
+//
+// Returns:
+//   - Validated and ranked boundaries
 func (d *BoundaryDetector) validateAndRankBoundaries(boundaries []*types.TrustBoundary, model *types.Model) []*types.TrustBoundary {
-	// Calculate scores for each boundary
+	// Score each boundary for importance
 	type scoredBoundary struct {
 		boundary *types.TrustBoundary
 		score    float64
@@ -465,8 +740,9 @@ func (d *BoundaryDetector) validateAndRankBoundaries(boundaries []*types.TrustBo
 	scored := []scoredBoundary{}
 	
 	for _, boundary := range boundaries {
+		// Calculate importance score
 		score := d.calculateBoundaryScore(boundary, model)
-		if score > 0.3 { // Minimum score threshold
+		if score > 0.3 { // Filter low-importance boundaries
 			scored = append(scored, scoredBoundary{boundary, score})
 		}
 	}
@@ -504,11 +780,11 @@ func (d *BoundaryDetector) calculateTrustLevel(asset *types.TechnicalAsset) floa
 	
 	// Adjust based on asset type
 	switch asset.Type {
-	case "external-entity":
+	case types.ExternalEntity:
 		trust = 0.1
-	case "process":
+	case types.Process:
 		trust = 0.6
-	case "datastore":
+	case types.Datastore:
 		trust = 0.7
 	}
 	
@@ -541,7 +817,7 @@ func (d *BoundaryDetector) determineAssetZone(asset *types.TechnicalAsset) strin
 	}
 	
 	// Default based on asset type
-	if asset.Type == "external-entity" {
+	if asset.Type == types.ExternalEntity {
 		return "public"
 	}
 	return "private"
@@ -561,12 +837,12 @@ func (d *BoundaryDetector) calculateEdgeWeight(link *types.CommunicationLink) fl
 	weight := 1.0
 	
 	// Adjust based on protocol
-	if link.Protocol == "https" || link.Protocol == "tls" {
+	if link.Protocol == types.HTTPS {
 		weight += 0.2
 	}
 	
 	// Adjust based on authentication
-	if link.Authentication != "none" {
+	if link.Authentication != types.NoneAuthentication {
 		weight += 0.3
 	}
 	
@@ -646,7 +922,7 @@ func (d *BoundaryDetector) determineSecurityZone(asset *types.TechnicalAsset) st
 	zone := d.determineAssetZone(asset)
 	
 	// Refine based on asset type and tags
-	if asset.Type == "external-entity" {
+	if asset.Type == types.ExternalEntity {
 		return "public"
 	}
 	
@@ -764,7 +1040,7 @@ func (d *BoundaryDetector) determineComplianceRequirement(asset *types.Technical
 	for _, dataAssetID := range asset.DataAssetsProcessed {
 		if dataAsset, exists := dataAssets[dataAssetID]; exists {
 			// Check data classification
-			if dataAsset.Confidentiality == "strictly-confidential" {
+			if dataAsset.Confidentiality == types.StrictlyConfidential {
 				if strings.Contains(strings.ToLower(dataAsset.Title), "payment") {
 					requirements = append(requirements, "pci")
 				}
@@ -840,11 +1116,11 @@ func (d *BoundaryDetector) calculateBoundaryScore(boundary *types.TrustBoundary,
 	
 	// Score based on boundary type
 	switch boundary.Type {
-	case "network-cloud-provider":
+	case types.NetworkCloudProvider:
 		score += 0.8
-	case "execution-environment":
+	case types.ExecutionEnvironment:
 		score += 0.6
-	case "network-on-prem":
+	case types.NetworkOnPrem:
 		score += 0.7
 	}
 	
@@ -871,7 +1147,7 @@ func (d *BoundaryDetector) calculateBoundaryScore(boundary *types.TrustBoundary,
 	criticalAssets := 0
 	for _, assetID := range boundary.TechnicalAssetsInside {
 		if asset, exists := model.TechnicalAssets[assetID]; exists {
-			if asset.Type == "datastore" || strings.Contains(strings.ToLower(asset.Title), "database") {
+			if asset.Type == types.Datastore || strings.Contains(strings.ToLower(asset.Title), "database") {
 				criticalAssets++
 			}
 		}

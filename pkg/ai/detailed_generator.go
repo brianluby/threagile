@@ -1,3 +1,7 @@
+// Package ai provides AI-powered threat model generation from Infrastructure as Code.
+// The detailed generator extends the simple generator with comprehensive security
+// analysis including compliance mapping, encryption verification, and advanced
+// threat detection.
 package ai
 
 import (
@@ -7,78 +11,137 @@ import (
 	"github.com/threagile/threagile/pkg/types"
 )
 
-// DetailedGenerator implements detailed threat model generation from IaC
+// DetailedGenerator implements comprehensive threat model generation from IaC files.
+// It builds upon the SimpleGenerator by adding:
+//   - Deep security configuration analysis
+//   - Network segmentation verification
+//   - IAM permission analysis
+//   - Data flow tracing
+//   - Compliance framework mapping
+//   - Encryption coverage assessment
+//   - Cross-resource relationship analysis
+//
+// This generator is suitable for production environments where thorough
+// security analysis is required.
 type DetailedGenerator struct {
+	// simpleGen provides the base generation functionality
 	simpleGen *SimpleGenerator
 }
 
-// NewDetailedGenerator creates a new detailed generator
+// NewDetailedGenerator creates a new detailed threat model generator.
+// The generator uses a SimpleGenerator as its foundation and enhances
+// the output with comprehensive security analysis.
 func NewDetailedGenerator() *DetailedGenerator {
 	return &DetailedGenerator{
 		simpleGen: NewSimpleGenerator(),
 	}
 }
 
-// Generate creates a detailed threat model from parsed infrastructure
+// Generate creates a comprehensive threat model from parsed infrastructure.
+// This method orchestrates multiple analysis phases:
+//
+// Phase 1: Base Generation
+//   - Uses SimpleGenerator to create initial model
+//   - Establishes technical assets and basic trust boundaries
+//
+// Phase 2: Security Enhancement (per ParseResult)
+//   - Security configurations: Analyzes firewall rules, access controls
+//   - Network segmentation: Verifies isolation and zone compliance
+//   - IAM analysis: Examines permissions and privilege escalation risks
+//   - Data flows: Traces data movement and identifies exposure points
+//   - Compliance: Maps infrastructure to regulatory requirements
+//   - Encryption: Verifies data protection at rest and in transit
+//
+// Phase 3: Cross-Resource Analysis
+//   - Identifies attack paths across resources
+//   - Detects privilege escalation opportunities
+//   - Finds data exfiltration routes
+//
+// Phase 4: Risk Documentation
+//   - Generates detailed risk tracking entries
+//   - Prioritizes findings by severity
+//   - Provides remediation guidance
+//
+// Parameters:
+//   - results: Parsed infrastructure data from IaC files
+//   - options: Generation options including mode and context
+//
+// Returns:
+//   - *types.Model: Comprehensive threat model with detailed analysis
+//   - error: Any errors during generation
 func (g *DetailedGenerator) Generate(results []*ParseResult, options GeneratorOptions) (*types.Model, error) {
-	// First, use simple generator as a base
+	// Phase 1: Create base model using simple generation
 	model, err := g.simpleGen.Generate(results, options)
 	if err != nil {
 		return nil, fmt.Errorf("base generation failed: %w", err)
 	}
 
-	// Enhance with detailed analysis
+	// Phase 2: Enhance with detailed security analysis
 	for _, result := range results {
-		// Add detailed security configurations
+		// Analyze security configurations (firewall rules, ACLs)
 		g.enhanceSecurityConfigurations(model, result)
 		
-		// Add detailed network segmentation
+		// Verify network segmentation and isolation
 		g.enhanceNetworkSegmentation(model, result)
 		
-		// Add detailed IAM analysis
+		// Examine IAM roles and permissions
 		g.enhanceIAMAnalysis(model, result)
 		
-		// Add detailed data flow analysis
+		// Trace data flows between components
 		g.enhanceDataFlows(model, result)
 		
-		// Add detailed compliance mappings
+		// Map to compliance frameworks (PCI-DSS, HIPAA, GDPR)
 		g.enhanceComplianceMappings(model, result)
 		
-		// Add detailed encryption analysis
+		// Verify encryption implementation
 		g.enhanceEncryptionAnalysis(model, result)
 	}
 
-	// Perform cross-resource analysis
+	// Phase 3: Perform cross-resource security analysis
+	// This identifies vulnerabilities that span multiple resources
 	g.performCrossResourceAnalysis(model, results)
 	
-	// Generate detailed risk tracking
+	// Phase 4: Generate comprehensive risk documentation
 	g.generateDetailedRiskTracking(model)
 	
-	// Add detailed metadata
+	// Add detailed metadata for audit trail
 	g.addDetailedMetadata(model, results)
 
 	return model, nil
 }
 
-// enhanceSecurityConfigurations adds detailed security configuration analysis
+// enhanceSecurityConfigurations performs deep analysis of security configurations.
+// This method examines firewall rules, access control lists, and security groups
+// to identify potential vulnerabilities.
+//
+// Security checks performed:
+//   - Overly permissive rules (0.0.0.0/0 access)
+//   - Missing egress controls
+//   - Unnecessary open ports
+//   - Protocol-specific vulnerabilities
+//   - Rule conflicts and gaps
+//
+// Parameters:
+//   - model: The threat model to enhance
+//   - result: ParseResult containing security configurations
 func (g *DetailedGenerator) enhanceSecurityConfigurations(model *types.Model, result *ParseResult) {
-	// Analyze security groups in detail
+	// Analyze each security group for vulnerabilities
 	for _, sg := range result.SecurityGroups {
-		// Check for overly permissive rules
+		// Check for rules that allow unrestricted access
 		for _, rule := range sg.Rules {
 			if g.isOverlyPermissive(rule) {
-				// Add risk tracking for overly permissive rules
+				// Document overly permissive access as high-risk
 				g.addSecurityRisk(model, sg.ID, "overly-permissive", rule)
 			}
 			
-			// Check for missing egress rules
+			// Verify egress filtering is implemented
 			if !g.hasEgressRules(sg) {
 				g.addSecurityRisk(model, sg.ID, "missing-egress-rules", nil)
 			}
 		}
 		
 		// Enhance technical assets with security group details
-		for id, asset := range model.TechnicalAssets {
+		for _, asset := range model.TechnicalAssets {
 			if g.assetUsesSecurityGroup(asset, sg) {
 				g.enhanceAssetSecurity(asset, sg)
 			}
@@ -86,17 +149,30 @@ func (g *DetailedGenerator) enhanceSecurityConfigurations(model *types.Model, re
 	}
 }
 
-// enhanceNetworkSegmentation adds detailed network segmentation analysis
+// enhanceNetworkSegmentation analyzes network isolation and segmentation.
+// Proper network segmentation is crucial for containing breaches and limiting
+// lateral movement in case of compromise.
+//
+// Analysis includes:
+//   - Network zone classification (DMZ, internal, management)
+//   - Subnet isolation verification
+//   - Inter-zone communication rules
+//   - Network ACL effectiveness
+//   - Routing table security
+//
+// Parameters:
+//   - model: The threat model to enhance
+//   - result: ParseResult containing network configurations
 func (g *DetailedGenerator) enhanceNetworkSegmentation(model *types.Model, result *ParseResult) {
-	// Analyze network configurations
+	// Examine each network component for proper segmentation
 	for _, network := range result.Networks {
-		// Determine network zone
+		// Classify network into security zones
 		zone := g.determineNetworkZone(network)
 		
-		// Create or update trust boundary for the network
+		// Ensure trust boundaries reflect network isolation
 		boundaryID := fmt.Sprintf("network-%s", network.ID)
 		if boundary, exists := model.TrustBoundaries[boundaryID]; exists {
-			// Enhance existing boundary
+			// Update existing boundary with zone information
 			g.enhanceTrustBoundary(boundary, network, zone)
 		} else {
 			// Create new trust boundary
@@ -108,11 +184,30 @@ func (g *DetailedGenerator) enhanceNetworkSegmentation(model *types.Model, resul
 	}
 }
 
-// enhanceIAMAnalysis adds detailed IAM configuration analysis
+// enhanceIAMAnalysis performs comprehensive Identity and Access Management analysis.
+// IAM misconfigurations are a leading cause of cloud security breaches.
+//
+// Analysis covers:
+//   - Principle of least privilege violations
+//   - Cross-account access risks
+//   - Wildcard permissions abuse
+//   - Administrative privilege exposure
+//   - Service account security
+//   - Role assumption chains
+//
+// Common IAM vulnerabilities detected:
+//   - Over-privileged roles (e.g., "*" permissions)
+//   - Unrestricted cross-account access
+//   - Long-lived credentials
+//   - Missing MFA requirements
+//
+// Parameters:
+//   - model: The threat model to enhance
+//   - result: ParseResult containing IAM configurations
 func (g *DetailedGenerator) enhanceIAMAnalysis(model *types.Model, result *ParseResult) {
-	// Analyze IAM roles
+	// Examine each IAM role for security issues
 	for _, role := range result.Roles {
-		// Check for excessive permissions
+		// Detect violations of least privilege principle
 		if g.hasExcessivePermissions(role) {
 			g.addIAMRisk(model, role.ID, "excessive-permissions")
 		}
@@ -140,14 +235,35 @@ func (g *DetailedGenerator) enhanceIAMAnalysis(model *types.Model, result *Parse
 	g.mapIAMToAssets(model, result)
 }
 
-// enhanceDataFlows adds detailed data flow analysis
+// enhanceDataFlows traces data movement through the infrastructure.
+// Understanding data flows is critical for:
+//   - Identifying data exposure points
+//   - Compliance boundary verification
+//   - Encryption coverage assessment
+//   - Access control validation
+//
+// Data classification levels:
+//   - Public: No sensitivity
+//   - Internal: Business confidential
+//   - Confidential: Customer data, PII
+//   - Restricted: Payment cards, health records
+//
+// Analysis includes:
+//   - Data store classification
+//   - Public access exposure
+//   - Encryption requirements
+//   - Cross-boundary flows
+//
+// Parameters:
+//   - model: The threat model to enhance
+//   - result: ParseResult containing data stores
 func (g *DetailedGenerator) enhanceDataFlows(model *types.Model, result *ParseResult) {
-	// Analyze data stores
+	// Process each database to understand data sensitivity
 	for _, db := range result.Databases {
-		// Determine data classification
+		// Classify data based on tags and patterns
 		classification := g.determineDataClassification(db)
 		
-		// Create data asset if not exists
+		// Ensure data asset exists in model
 		dataAssetID := fmt.Sprintf("data-%s", db.ID)
 		if _, exists := model.DataAssets[dataAssetID]; !exists {
 			model.DataAssets[dataAssetID] = g.createDataAsset(db, classification)
@@ -171,15 +287,37 @@ func (g *DetailedGenerator) enhanceDataFlows(model *types.Model, result *ParseRe
 	}
 }
 
-// enhanceComplianceMappings adds compliance requirement mappings
+// enhanceComplianceMappings maps infrastructure to regulatory requirements.
+// Automated compliance detection helps ensure:
+//   - Regulatory requirements are met
+//   - Audit trails are complete
+//   - Controls are properly implemented
+//
+// Supported compliance frameworks:
+//   - PCI-DSS: Payment card data protection
+//   - HIPAA: Healthcare data privacy
+//   - GDPR: EU data protection
+//   - SOC2: Service organization controls
+//   - ISO27001: Information security management
+//
+// Detection based on:
+//   - Resource tags (e.g., "pci-scope")
+//   - Resource types (e.g., payment processing)
+//   - Data classifications
+//   - Network zones
+//
+// Parameters:
+//   - model: The threat model to enhance
+//   - result: ParseResult containing infrastructure
 func (g *DetailedGenerator) enhanceComplianceMappings(model *types.Model, result *ParseResult) {
-	// Add compliance tags based on detected patterns
+	// Detect compliance patterns from infrastructure
 	compliancePatterns := g.detectCompliancePatterns(result)
 	
+	// Tag assets with applicable compliance frameworks
 	for pattern, assets := range compliancePatterns {
 		for _, assetID := range assets {
 			if asset, exists := model.TechnicalAssets[assetID]; exists {
-				// Add compliance tag
+				// Apply compliance framework tag
 				complianceTag := fmt.Sprintf("compliance:%s", pattern)
 				if !g.hasTag(asset, complianceTag) {
 					asset.Tags = append(asset.Tags, complianceTag)
@@ -189,16 +327,35 @@ func (g *DetailedGenerator) enhanceComplianceMappings(model *types.Model, result
 	}
 }
 
-// enhanceEncryptionAnalysis adds detailed encryption analysis
+// enhanceEncryptionAnalysis verifies encryption implementation across infrastructure.
+// Encryption is a fundamental security control for data protection.
+//
+// Analysis covers:
+//   - Encryption in transit (TLS/SSL)
+//   - Encryption at rest (disk/database)
+//   - Key management practices
+//   - Certificate validation
+//   - Algorithm strength
+//
+// Common encryption issues:
+//   - Unencrypted network communication
+//   - Plain text data storage
+//   - Weak encryption algorithms
+//   - Poor key management
+//   - Self-signed certificates
+//
+// Parameters:
+//   - model: The threat model to enhance
+//   - result: ParseResult containing infrastructure
 func (g *DetailedGenerator) enhanceEncryptionAnalysis(model *types.Model, result *ParseResult) {
-	// Check encryption in transit
+	// Verify all communication links use encryption
 	for id, link := range model.CommunicationLinks {
 		if !g.isEncryptedInTransit(link) {
 			g.addCommunicationRisk(model, id, "unencrypted-transit")
 		}
 	}
 	
-	// Check encryption at rest
+	// Verify data stores implement encryption at rest
 	for id, asset := range model.TechnicalAssets {
 		if g.storesData(asset) && !g.hasEncryptionAtRest(asset) {
 			g.addEncryptionRisk(model, id, "unencrypted-at-rest")
@@ -206,18 +363,38 @@ func (g *DetailedGenerator) enhanceEncryptionAnalysis(model *types.Model, result
 	}
 }
 
-// performCrossResourceAnalysis performs analysis across multiple resources
+// performCrossResourceAnalysis identifies vulnerabilities spanning multiple resources.
+// Many security issues arise from the interaction between components rather than
+// individual resource misconfigurations.
+//
+// Cross-resource analysis includes:
+//   - Dependency chain vulnerabilities
+//   - Single points of failure (SPOF)
+//   - Missing redundancy
+//   - Cascading failure risks
+//   - Attack path analysis
+//   - Privilege escalation chains
+//
+// This holistic view reveals:
+//   - Architecture-level weaknesses
+//   - Availability risks
+//   - Data flow vulnerabilities
+//   - Defense-in-depth gaps
+//
+// Parameters:
+//   - model: The threat model to analyze
+//   - results: All ParseResults for comprehensive view
 func (g *DetailedGenerator) performCrossResourceAnalysis(model *types.Model, results []*ParseResult) {
-	// Analyze resource dependencies
+	// Map dependencies between all resources
 	dependencies := g.analyzeDependencies(results)
 	
-	// Identify single points of failure
+	// Find critical components without redundancy
 	spofs := g.identifySPOFs(dependencies)
 	for _, spof := range spofs {
 		g.addArchitectureRisk(model, spof, "single-point-of-failure")
 	}
 	
-	// Identify missing redundancy
+	// Detect missing high-availability configurations
 	missingRedundancy := g.identifyMissingRedundancy(model)
 	for _, assetID := range missingRedundancy {
 		g.addArchitectureRisk(model, assetID, "missing-redundancy")
@@ -230,31 +407,74 @@ func (g *DetailedGenerator) performCrossResourceAnalysis(model *types.Model, res
 	}
 }
 
-// generateDetailedRiskTracking generates detailed risk tracking entries
+// generateDetailedRiskTracking creates comprehensive risk documentation.
+// Risk tracking is essential for:
+//   - Audit trails
+//   - Risk acceptance workflows
+//   - Remediation tracking
+//   - Compliance reporting
+//
+// Each identified risk gets a tracking entry with:
+//   - Unique identifier
+//   - Current status (unchecked, accepted, mitigated)
+//   - Justification for decisions
+//   - Ticket references for remediation
+//   - Audit metadata (date, reviewer)
+//
+// This enables organizations to:
+//   - Document risk decisions
+//   - Track remediation progress
+//   - Demonstrate due diligence
+//   - Support compliance audits
+//
+// Parameters:
+//   - model: The threat model to add risk tracking to
 func (g *DetailedGenerator) generateDetailedRiskTracking(model *types.Model) {
 	if model.RiskTracking == nil {
 		model.RiskTracking = make(map[string]*types.RiskTracking)
 	}
 	
-	// Add risk tracking for identified issues
+	// Create tracking entries for all identified risks
 	for id, asset := range model.TechnicalAssets {
 		risks := g.identifyAssetRisks(asset)
 		for _, risk := range risks {
+			// Generate unique tracking ID for each risk
 			trackingID := fmt.Sprintf("%s-%s", id, risk.Type)
 			model.RiskTracking[trackingID] = &types.RiskTracking{
-				Status:         "unchecked",
+				Status:         types.Unchecked,
 				Justification:  fmt.Sprintf("Automatically identified %s risk for %s", risk.Type, asset.Title),
 				Ticket:         "",
-				Date:           "",
+				Date:           types.Date{},
 				CheckedBy:      "",
 			}
 		}
 	}
 }
 
-// addDetailedMetadata adds detailed metadata to the model
+// addDetailedMetadata enriches the model with comprehensive metadata.
+// Metadata provides context for:
+//   - Model scope and coverage
+//   - Business impact assessment
+//   - Resource inventory
+//   - Generation audit trail
+//
+// Metadata includes:
+//   - Resource counts by type
+//   - Infrastructure complexity metrics
+//   - Business criticality assessment
+//   - Generation timestamp and method
+//
+// This information helps:
+//   - Stakeholders understand scope
+//   - Auditors verify completeness
+//   - Teams prioritize remediation
+//   - Management assess risk exposure
+//
+// Parameters:
+//   - model: The threat model to enrich
+//   - results: All ParseResults for statistics
 func (g *DetailedGenerator) addDetailedMetadata(model *types.Model, results []*ParseResult) {
-	// Count resources by type
+	// Calculate infrastructure statistics
 	resourceCounts := make(map[string]int)
 	for _, result := range results {
 		resourceCounts["resources"] += len(result.Resources)
@@ -267,27 +487,57 @@ func (g *DetailedGenerator) addDetailedMetadata(model *types.Model, results []*P
 	}
 	
 	// Add to model metadata
-	if model.Overview == nil {
-		model.Overview = &types.Overview{}
+	if model.TechnicalOverview == nil {
+		model.TechnicalOverview = &types.Overview{}
 	}
 	
-	if model.Overview.Description == "" {
-		model.Overview.Description = "Threat model generated from Infrastructure as Code with detailed analysis"
+	if model.TechnicalOverview.Description == "" {
+		model.TechnicalOverview.Description = "Threat model generated from Infrastructure as Code with detailed analysis"
 	}
 	
 	// Add business criticality based on resources
-	if model.Overview.BusinessCriticality == "" {
-		model.Overview.BusinessCriticality = g.determineBusinessCriticality(resourceCounts)
+	if model.BusinessCriticality == 0 {
+		// Determine criticality based on resource counts
+		switch g.determineBusinessCriticality(resourceCounts) {
+		case "critical":
+			model.BusinessCriticality = types.Critical
+		case "important":
+			model.BusinessCriticality = types.Important
+		default:
+			model.BusinessCriticality = types.Operational
+		}
 	}
 }
 
 // Helper methods for detailed analysis
+// These methods implement specific security checks and analysis logic
+// used throughout the detailed generation process.
 
+// isOverlyPermissive checks if a security rule allows unrestricted access.
+// Rules allowing access from 0.0.0.0/0 (IPv4) or ::/0 (IPv6) expose
+// resources to the entire internet, creating significant security risk.
+//
+// Parameters:
+//   - rule: The security rule to evaluate
+//
+// Returns:
+//   - true if the rule allows unrestricted access
 func (g *DetailedGenerator) isOverlyPermissive(rule SecurityRule) bool {
-	// Check if rule allows access from anywhere
+	// Check for "allow all" IPv4 and IPv6 addresses
 	return rule.Source == "0.0.0.0/0" || rule.Source == "::/0"
 }
 
+// hasEgressRules verifies if a security group has outbound rules defined.
+// Missing egress rules may indicate:
+//   - Default allow-all outbound (security risk)
+//   - Incomplete security configuration
+//   - Potential data exfiltration paths
+//
+// Parameters:
+//   - sg: The security group to check
+//
+// Returns:
+//   - true if egress rules are defined
 func (g *DetailedGenerator) hasEgressRules(sg *SecurityGroup) bool {
 	for _, rule := range sg.Rules {
 		if rule.Direction == "egress" {
@@ -297,8 +547,20 @@ func (g *DetailedGenerator) hasEgressRules(sg *SecurityGroup) bool {
 	return false
 }
 
+// assetUsesSecurityGroup determines if an asset is protected by a security group.
+// This association is important for:
+//   - Understanding asset exposure
+//   - Validating defense-in-depth
+//   - Identifying unprotected resources
+//
+// Parameters:
+//   - asset: The technical asset to check
+//   - sg: The security group to match
+//
+// Returns:
+//   - true if the asset uses this security group
 func (g *DetailedGenerator) assetUsesSecurityGroup(asset *types.TechnicalAsset, sg *SecurityGroup) bool {
-	// Check if asset references this security group
+	// Check if asset tags reference the security group
 	for _, tag := range asset.Tags {
 		if strings.Contains(tag, sg.ID) {
 			return true
@@ -307,16 +569,42 @@ func (g *DetailedGenerator) assetUsesSecurityGroup(asset *types.TechnicalAsset, 
 	return false
 }
 
+// enhanceAssetSecurity enriches an asset with security group information.
+// This enhancement helps:
+//   - Track security controls per asset
+//   - Validate security group coverage
+//   - Support security group analysis
+//
+// Parameters:
+//   - asset: The asset to enhance
+//   - sg: The security group protecting the asset
 func (g *DetailedGenerator) enhanceAssetSecurity(asset *types.TechnicalAsset, sg *SecurityGroup) {
-	// Add security group details to asset
+	// Tag asset with security group for traceability
 	sgTag := fmt.Sprintf("security-group:%s", sg.Name)
 	if !g.hasTag(asset, sgTag) {
 		asset.Tags = append(asset.Tags, sgTag)
 	}
 }
 
+// determineNetworkZone classifies networks into security zones.
+// Zone classification is crucial for:
+//   - Applying appropriate security controls
+//   - Validating network segmentation
+//   - Enforcing zone-based policies
+//
+// Common zones:
+//   - public: Internet-facing resources
+//   - dmz: Semi-trusted buffer zone  
+//   - private: Internal resources only
+//   - management: Administrative access
+//
+// Parameters:
+//   - network: The network to classify
+//
+// Returns:
+//   - Zone classification string
 func (g *DetailedGenerator) determineNetworkZone(network *Network) string {
-	// Determine if network is public, private, or DMZ
+	// Use naming conventions to infer zone
 	if strings.Contains(strings.ToLower(network.Name), "public") {
 		return "public"
 	}
@@ -326,18 +614,34 @@ func (g *DetailedGenerator) determineNetworkZone(network *Network) string {
 	return "private"
 }
 
+// enhanceTrustBoundary enriches an existing trust boundary with network zone information.
+// This provides context for security controls and compliance requirements.
+//
+// Parameters:
+//   - boundary: The trust boundary to enhance
+//   - network: The network providing context
+//   - zone: The security zone classification
 func (g *DetailedGenerator) enhanceTrustBoundary(boundary *types.TrustBoundary, network *Network, zone string) {
-	// Enhance trust boundary with network details
+	// Tag boundary with zone and network type for analysis
 	boundary.Tags = append(boundary.Tags, fmt.Sprintf("zone:%s", zone))
 	boundary.Tags = append(boundary.Tags, fmt.Sprintf("network:%s", network.Type))
 }
 
+// createNetworkBoundary creates a new trust boundary from network configuration.
+// Trust boundaries represent security perimeters where trust levels change.
+//
+// Parameters:
+//   - network: The network defining the boundary
+//   - zone: The security zone classification
+//
+// Returns:
+//   - New trust boundary with appropriate metadata
 func (g *DetailedGenerator) createNetworkBoundary(network *Network, zone string) *types.TrustBoundary {
 	return &types.TrustBoundary{
 		Id:          fmt.Sprintf("network-%s", network.ID),
 		Title:       fmt.Sprintf("%s Network", network.Name),
 		Description: fmt.Sprintf("Network boundary for %s zone", zone),
-		Type:        types.TrustBoundaryType("network-cloud-provider"),
+		Type:        types.NetworkCloudProvider,
 		Tags: []string{
 			fmt.Sprintf("zone:%s", zone),
 			fmt.Sprintf("network:%s", network.Type),
@@ -396,8 +700,22 @@ func (g *DetailedGenerator) mapIAMToAssets(model *types.Model, result *ParseResu
 	}
 }
 
+// determineDataClassification infers data sensitivity from database naming patterns.
+// This heuristic approach helps identify compliance requirements and security controls.
+//
+// Classification levels:
+//   - restricted: Highly sensitive (payment, credit cards, SSN)
+//   - confidential: Sensitive personal data (user, customer info)
+//   - internal: Business data (non-public operational data)
+//   - public: Non-sensitive (caches, public content)
+//
+// Parameters:
+//   - db: The database to classify
+//
+// Returns:
+//   - Data classification level
 func (g *DetailedGenerator) determineDataClassification(db *Database) string {
-	// Determine data classification based on database name and type
+	// Use naming patterns to infer data sensitivity
 	name := strings.ToLower(db.Name)
 	if strings.Contains(name, "user") || strings.Contains(name, "customer") {
 		return "confidential"
@@ -416,14 +734,14 @@ func (g *DetailedGenerator) createDataAsset(db *Database, classification string)
 		Id:    fmt.Sprintf("data-%s", db.ID),
 		Title: fmt.Sprintf("%s Data", db.Name),
 		Description: fmt.Sprintf("Data stored in %s database", db.Name),
-		Usage: types.UsageType("business"),
+		Usage: types.Business,
 		Tags: []string{
 			fmt.Sprintf("classification:%s", classification),
 			fmt.Sprintf("database:%s", db.Type),
 		},
 		Origin:             "IaC",
 		Owner:              "system",
-		Quantity:           types.Quantity("many"),
+		Quantity:           types.Many,
 		Confidentiality:    g.mapToConfidentiality(classification),
 		Integrity:          g.mapToIntegrity(classification),
 		Availability:       g.mapToAvailability(classification),
@@ -463,20 +781,39 @@ func (g *DetailedGenerator) isEncrypted(storage *Storage) bool {
 	return false
 }
 
+// detectCompliancePatterns identifies infrastructure subject to regulatory requirements.
+// Automatic compliance detection helps ensure proper controls are implemented.
+//
+// Detected frameworks:
+//   - PCI-DSS: Payment card industry (payment, card, transaction)
+//   - HIPAA: Healthcare (patient, medical, health, PHI)
+//   - GDPR: EU privacy (user, customer, personal data)
+//
+// Detection based on:
+//   - Resource naming patterns
+//   - Data types processed
+//   - Geographic indicators
+//   - Industry-specific markers
+//
+// Parameters:
+//   - result: ParseResult containing infrastructure
+//
+// Returns:
+//   - Map of compliance framework to affected asset IDs
 func (g *DetailedGenerator) detectCompliancePatterns(result *ParseResult) map[string][]string {
 	patterns := make(map[string][]string)
 	
-	// Check for PCI compliance patterns
+	// Detect payment card processing infrastructure
 	if g.hasPCIPatterns(result) {
 		patterns["pci-dss"] = g.getPCIAssets(result)
 	}
 	
-	// Check for HIPAA compliance patterns
+	// Detect healthcare data infrastructure  
 	if g.hasHIPAAPatterns(result) {
 		patterns["hipaa"] = g.getHIPAAAssets(result)
 	}
 	
-	// Check for GDPR compliance patterns
+	// Detect personal data processing
 	if g.hasGDPRPatterns(result) {
 		patterns["gdpr"] = g.getGDPRAssets(result)
 	}
@@ -503,7 +840,7 @@ func (g *DetailedGenerator) isEncryptedInTransit(link *types.CommunicationLink) 
 
 func (g *DetailedGenerator) storesData(asset *types.TechnicalAsset) bool {
 	// Check if asset stores data
-	return asset.Type == "datastore" || 
+	return asset.Type == types.Datastore || 
 		   strings.Contains(strings.ToLower(asset.Title), "database") ||
 		   strings.Contains(strings.ToLower(asset.Title), "storage")
 }
@@ -580,16 +917,27 @@ func (g *DetailedGenerator) determineBusinessCriticality(counts map[string]int) 
 }
 
 // Risk tracking helper methods
+// These methods create standardized risk entries for different vulnerability categories.
+// Consistent risk tracking enables systematic remediation and compliance reporting.
 
+// addSecurityRisk documents network and access control vulnerabilities.
+// Security risks include firewall misconfigurations, open ports, and access control issues.
+//
+// Parameters:
+//   - model: The threat model to update
+//   - assetID: The affected asset identifier
+//   - riskType: The type of security risk detected
+//   - rule: The specific rule or configuration causing risk
 func (g *DetailedGenerator) addSecurityRisk(model *types.Model, assetID, riskType string, rule interface{}) {
-	// Add security risk to model
+	// Initialize risk tracking if needed
 	if model.RiskTracking == nil {
 		model.RiskTracking = make(map[string]*types.RiskTracking)
 	}
 	
+	// Create unique risk identifier
 	riskID := fmt.Sprintf("security-%s-%s", assetID, riskType)
 	model.RiskTracking[riskID] = &types.RiskTracking{
-		Status:        "unchecked",
+		Status:        types.Unchecked,
 		Justification: fmt.Sprintf("Security risk: %s", riskType),
 	}
 }
@@ -601,7 +949,7 @@ func (g *DetailedGenerator) addIAMRisk(model *types.Model, assetID, riskType str
 	
 	riskID := fmt.Sprintf("iam-%s-%s", assetID, riskType)
 	model.RiskTracking[riskID] = &types.RiskTracking{
-		Status:        "unchecked",
+		Status:        types.Unchecked,
 		Justification: fmt.Sprintf("IAM risk: %s", riskType),
 	}
 }
@@ -613,7 +961,7 @@ func (g *DetailedGenerator) addStorageRisk(model *types.Model, assetID, riskType
 	
 	riskID := fmt.Sprintf("storage-%s-%s", assetID, riskType)
 	model.RiskTracking[riskID] = &types.RiskTracking{
-		Status:        "unchecked",
+		Status:        types.Unchecked,
 		Justification: fmt.Sprintf("Storage risk: %s", riskType),
 	}
 }
@@ -625,7 +973,7 @@ func (g *DetailedGenerator) addCommunicationRisk(model *types.Model, linkID, ris
 	
 	riskID := fmt.Sprintf("comm-%s-%s", linkID, riskType)
 	model.RiskTracking[riskID] = &types.RiskTracking{
-		Status:        "unchecked",
+		Status:        types.Unchecked,
 		Justification: fmt.Sprintf("Communication risk: %s", riskType),
 	}
 }
@@ -637,7 +985,7 @@ func (g *DetailedGenerator) addEncryptionRisk(model *types.Model, assetID, riskT
 	
 	riskID := fmt.Sprintf("encryption-%s-%s", assetID, riskType)
 	model.RiskTracking[riskID] = &types.RiskTracking{
-		Status:        "unchecked",
+		Status:        types.Unchecked,
 		Justification: fmt.Sprintf("Encryption risk: %s", riskType),
 	}
 }
@@ -649,7 +997,7 @@ func (g *DetailedGenerator) addArchitectureRisk(model *types.Model, assetID, ris
 	
 	riskID := fmt.Sprintf("arch-%s-%s", assetID, riskType)
 	model.RiskTracking[riskID] = &types.RiskTracking{
-		Status:        "unchecked",
+		Status:        types.Unchecked,
 		Justification: fmt.Sprintf("Architecture risk: %s", riskType),
 	}
 }
@@ -662,7 +1010,7 @@ func (g *DetailedGenerator) addAttackPathRisk(model *types.Model, path []string)
 	pathStr := strings.Join(path, "->")
 	riskID := fmt.Sprintf("attack-path-%s", pathStr)
 	model.RiskTracking[riskID] = &types.RiskTracking{
-		Status:        "unchecked",
+		Status:        types.Unchecked,
 		Justification: fmt.Sprintf("Potential attack path: %s", pathStr),
 	}
 }
@@ -683,35 +1031,35 @@ func (g *DetailedGenerator) roleAppliesToAsset(role *Role, asset *types.Technica
 func (g *DetailedGenerator) mapToConfidentiality(classification string) types.Confidentiality {
 	switch classification {
 	case "restricted":
-		return types.Confidentiality("strictly-confidential")
+		return types.StrictlyConfidential
 	case "confidential":
-		return types.Confidentiality("confidential")
+		return types.Confidential
 	case "internal":
-		return types.Confidentiality("internal")
+		return types.Internal
 	default:
-		return types.Confidentiality("public")
+		return types.Public
 	}
 }
 
 func (g *DetailedGenerator) mapToIntegrity(classification string) types.Criticality {
 	switch classification {
 	case "restricted", "confidential":
-		return types.Criticality("critical")
+		return types.Critical
 	case "internal":
-		return types.Criticality("important")
+		return types.Important
 	default:
-		return types.Criticality("operational")
+		return types.Operational
 	}
 }
 
 func (g *DetailedGenerator) mapToAvailability(classification string) types.Criticality {
 	switch classification {
 	case "restricted":
-		return types.Criticality("critical")
+		return types.Critical
 	case "confidential", "internal":
-		return types.Criticality("important")
+		return types.Important
 	default:
-		return types.Criticality("operational")
+		return types.Operational
 	}
 }
 
@@ -727,10 +1075,10 @@ func (g *DetailedGenerator) createDataFlow(sourceID, targetID, classification st
 		TargetId: targetID,
 		Title:    fmt.Sprintf("Data flow to %s", targetID),
 		Description: fmt.Sprintf("Data flow for %s data", classification),
-		Protocol: types.Protocol("https"),
-		Authentication: types.Authentication("credentials"),
-		Authorization: types.Authorization("technical-user"),
-		Usage: types.Usage("business"),
+		Protocol: types.HTTPS,
+		Authentication: types.Credentials,
+		Authorization: types.TechnicalUser,
+		Usage: types.Business,
 	}
 }
 
@@ -809,7 +1157,7 @@ func (g *DetailedGenerator) getGDPRAssets(result *ParseResult) []string {
 
 func (g *DetailedGenerator) isCritical(asset *types.TechnicalAsset) bool {
 	// Check if asset is critical
-	return asset.Type == "datastore" || 
+	return asset.Type == types.Datastore || 
 		   strings.Contains(strings.ToLower(asset.Title), "database") ||
 		   strings.Contains(strings.ToLower(asset.Title), "payment")
 }

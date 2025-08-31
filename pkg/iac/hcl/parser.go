@@ -1,3 +1,7 @@
+// Package hcl provides a parser for HashiCorp Configuration Language (HCL) files,
+// primarily used for Terraform infrastructure definitions. This parser extracts
+// infrastructure components, security configurations, and relationships from HCL
+// files to build a comprehensive threat model.
 package hcl
 
 import (
@@ -12,25 +16,39 @@ import (
 	"github.com/threagile/threagile/pkg/types"
 )
 
-// Parser implements the ai.IaCParser interface for HCL/Terraform files
+// Parser implements the ai.IaCParser interface for HCL/Terraform files.
+// It uses the official HashiCorp HCL v2 library to parse Terraform configurations
+// and extract infrastructure components like compute instances, databases, networks,
+// security groups, and IAM resources for threat modeling analysis.
 type Parser struct {
+	// hclParser is the underlying HCL parser instance from HashiCorp's library
 	hclParser *hclparse.Parser
 }
 
-// NewParser creates a new HCL parser
+// NewParser creates a new HCL parser instance.
+// The parser is initialized with HashiCorp's HCL v2 parser which supports
+// both native HCL syntax and JSON-based HCL files.
 func NewParser() *Parser {
 	return &Parser{
 		hclParser: hclparse.NewParser(),
 	}
 }
 
-// TerraformConfig represents the top-level Terraform configuration
+// TerraformConfig represents the top-level Terraform configuration structure.
+// This struct maps to the main blocks found in Terraform files and is used
+// for decoding HCL content into Go structures for analysis.
 type TerraformConfig struct {
+	// Resources defines infrastructure components (e.g., EC2 instances, S3 buckets)
 	Resources   []Resource   `hcl:"resource,block"`
+	// DataSources reference existing infrastructure for use in configuration
 	DataSources []DataSource `hcl:"data,block"`
+	// Variables define input parameters for the Terraform configuration
 	Variables   []Variable   `hcl:"variable,block"`
+	// Outputs define values to be extracted after infrastructure deployment
 	Outputs     []Output     `hcl:"output,block"`
+	// Providers configure the infrastructure platforms (AWS, Azure, GCP, etc.)
 	Providers   []Provider   `hcl:"provider,block"`
+	// Modules encapsulate reusable Terraform configurations
 	Modules     []Module     `hcl:"module,block"`
 }
 
@@ -78,7 +96,19 @@ type Module struct {
 	Config hcl.Body `hcl:",remain"`
 }
 
-// SupportsFile checks if the parser supports the given file
+// SupportsFile checks if the parser supports the given file based on its extension.
+// This method implements the ai.IaCParser interface requirement.
+//
+// Supported file types:
+//   - .tf files: Standard Terraform configuration files
+//   - .hcl files: Generic HCL configuration files
+//   - .tf.json files: JSON-formatted Terraform configuration files
+//
+// Parameters:
+//   - filename: The path to the file to check
+//
+// Returns:
+//   - true if the file type is supported, false otherwise
 func (p *Parser) SupportsFile(filename string) bool {
 	ext := strings.ToLower(filepath.Ext(filename))
 	base := filepath.Base(filename)
@@ -96,8 +126,25 @@ func (p *Parser) SupportsFile(filename string) bool {
 	return false
 }
 
-// ParseFile parses an HCL/Terraform file and returns infrastructure components
+// ParseFile parses an HCL/Terraform file and extracts infrastructure components
+// for threat modeling analysis. This is the main entry point for the parser.
+//
+// The method performs the following steps:
+//   1. Initializes result structures for various infrastructure components
+//   2. Parses the HCL content using HashiCorp's parser
+//   3. Attempts to decode the HCL into structured Terraform blocks
+//   4. Processes each block type to extract security-relevant information
+//   5. Returns a ParseResult containing all discovered infrastructure
+//
+// Parameters:
+//   - filename: The path to the file being parsed (used for error reporting)
+//   - content: The raw byte content of the HCL file
+//
+// Returns:
+//   - *ai.ParseResult: Structured data about discovered infrastructure
+//   - error: Any parsing or processing errors encountered
 func (p *Parser) ParseFile(filename string, content []byte) (*ai.ParseResult, error) {
+	// Initialize the result structure with empty maps for each component type
 	result := &ai.ParseResult{
 		Resources:      make(map[string]*ai.Resource),
 		Networks:       make(map[string]*ai.Network),
@@ -118,42 +165,52 @@ func (p *Parser) ParseFile(filename string, content []byte) (*ai.ParseResult, er
 		},
 	}
 
-	// Parse the HCL file
+	// Parse the HCL file using HashiCorp's parser
+	// This handles both native HCL and JSON syntax
 	file, diags := p.hclParser.ParseHCL(content, filename)
 	if diags.HasErrors() {
 		return nil, fmt.Errorf("HCL parse errors: %s", diags.Error())
 	}
 
-	// Decode into our structure
+	// Attempt to decode the parsed HCL into our TerraformConfig structure
+	// This provides strongly-typed access to Terraform blocks
 	var config TerraformConfig
 	diags = gohcl.DecodeBody(file.Body, nil, &config)
 	if diags.HasErrors() {
-		// Try to extract what we can even with errors
-		// Many Terraform files have complex expressions that may not fully decode
+		// Terraform files often contain complex expressions, interpolations,
+		// and dynamic blocks that may not decode cleanly into static structures.
+		// We'll try to extract what we can using a more flexible approach.
 		p.extractPartialResources(file.Body, result)
 	}
 
-	// Process resources
+	// Process each type of Terraform block to extract infrastructure components
+	
+	// Process resource blocks (e.g., aws_instance, azurerm_storage_account)
+	// These represent the actual infrastructure being created
 	for _, resource := range config.Resources {
 		p.processResource(resource, result)
 	}
 
-	// Process data sources
+	// Process data source blocks which reference existing infrastructure
+	// These can reveal dependencies and integration points
 	for _, dataSource := range config.DataSources {
 		p.processDataSource(dataSource, result)
 	}
 
-	// Process modules
+	// Process module blocks which encapsulate reusable configurations
+	// Modules may contain additional infrastructure not visible at this level
 	for _, module := range config.Modules {
 		p.processModule(module, result)
 	}
 
-	// Process variables for security analysis
+	// Process variable blocks to identify sensitive configuration values
+	// Variables marked as sensitive may contain credentials or secrets
 	for _, variable := range config.Variables {
 		p.processVariable(variable, result)
 	}
 
-	// Process outputs for security analysis
+	// Process output blocks which may expose sensitive information
+	// Outputs marked as sensitive need special handling in threat models
 	for _, output := range config.Outputs {
 		p.processOutput(output, result)
 	}
@@ -161,11 +218,22 @@ func (p *Parser) ParseFile(filename string, content []byte) (*ai.ParseResult, er
 	return result, nil
 }
 
-// processResource processes a Terraform resource and adds it to the result
+// processResource analyzes a Terraform resource block and categorizes it into
+// the appropriate infrastructure component type for threat modeling.
+//
+// This method examines the resource type (e.g., aws_instance, google_compute_instance)
+// and maps it to the corresponding threat model component (compute, database, storage, etc.).
+// It also extracts security-relevant attributes like tags, encryption settings, and access controls.
+//
+// Parameters:
+//   - resource: The parsed Terraform resource block
+//   - result: The ParseResult to populate with discovered components
 func (p *Parser) processResource(resource Resource, result *ai.ParseResult) {
+	// Create a unique identifier for this resource using Terraform's naming convention
 	resourceID := fmt.Sprintf("%s.%s", resource.Type, resource.Name)
 	
-	// Map Terraform resource types to appropriate categories
+	// Map Terraform resource types to appropriate threat model categories
+	// This switch statement handles provider-specific resource types from AWS, Azure, GCP, etc.
 	switch {
 	case strings.HasPrefix(resource.Type, "aws_instance") || 
 		 strings.HasPrefix(resource.Type, "aws_ec2_instance") ||
@@ -342,9 +410,16 @@ func (p *Parser) processModule(module Module, result *ai.ParseResult) {
 	}
 }
 
-// processVariable processes a Terraform variable
+// processVariable analyzes a Terraform variable block for security implications.
+// Variables marked as "sensitive" are particularly important for threat modeling
+// as they often contain credentials, API keys, or other secrets that need protection.
+//
+// Parameters:
+//   - variable: The parsed Terraform variable block
+//   - result: The ParseResult to update with sensitive variable information
 func (p *Parser) processVariable(variable Variable, result *ai.ParseResult) {
-	// Check for sensitive variables that might contain secrets
+	// Track variables marked as sensitive - these likely contain secrets
+	// that require special handling in the threat model
 	if variable.Sensitive != nil && *variable.Sensitive {
 		if result.Metadata.SensitiveVariables == nil {
 			result.Metadata.SensitiveVariables = make([]string, 0)
@@ -356,9 +431,16 @@ func (p *Parser) processVariable(variable Variable, result *ai.ParseResult) {
 	}
 }
 
-// processOutput processes a Terraform output
+// processOutput analyzes a Terraform output block for security implications.
+// Outputs marked as "sensitive" may expose confidential information and need
+// to be carefully tracked in the threat model to prevent accidental exposure.
+//
+// Parameters:
+//   - output: The parsed Terraform output block
+//   - result: The ParseResult to update with sensitive output information
 func (p *Parser) processOutput(output Output, result *ai.ParseResult) {
-	// Check for sensitive outputs
+	// Track outputs marked as sensitive - these may expose secrets
+	// and should be highlighted in the threat model
 	if output.Sensitive != nil && *output.Sensitive {
 		if result.Metadata.SensitiveOutputs == nil {
 			result.Metadata.SensitiveOutputs = make([]string, 0)
@@ -370,16 +452,40 @@ func (p *Parser) processOutput(output Output, result *ai.ParseResult) {
 	}
 }
 
-// extractPartialResources attempts to extract resources even when full decoding fails
+// extractPartialResources provides a fallback parsing mechanism for complex HCL files
+// that cannot be fully decoded into our structured format. This handles cases where
+// Terraform files use advanced features like dynamic blocks, complex expressions,
+// or provider-specific extensions that don't fit our static schema.
+//
+// Parameters:
+//   - body: The HCL body that failed to decode normally
+//   - result: The ParseResult to populate with any extractable information
+//
+// Note: This is a resilience mechanism to ensure we can extract some value
+// from any valid Terraform file, even if we can't parse it completely.
 func (p *Parser) extractPartialResources(body hcl.Body, result *ai.ParseResult) {
-	// This is a fallback method to extract what we can from complex HCL files
-	// Implementation would use lower-level HCL APIs to traverse the AST
-	// For now, we'll just note that partial extraction was attempted
+	// TODO: Implement AST traversal to extract resource types and names
+	// even when full attribute decoding fails. This would use the lower-level
+	// HCL APIs to walk the syntax tree and identify resource blocks.
+	
+	// Mark that this was a partial parse so the threat model generator
+	// knows the results may be incomplete
 	result.Metadata.PartialParse = true
 }
 
-// Helper methods for extracting specific attributes
+// Helper methods for extracting specific attributes from resources
+// These methods provide consistent mapping between Terraform resource types
+// and threat model categories.
 
+// getProviderFromType determines the cloud provider from a Terraform resource type.
+// This is essential for threat modeling as different providers have different
+// security models, compliance requirements, and attack surfaces.
+//
+// Parameters:
+//   - resourceType: The Terraform resource type (e.g., "aws_instance", "google_compute_instance")
+//
+// Returns:
+//   - The provider name ("aws", "gcp", "azure", "kubernetes", or "unknown")
 func (p *Parser) getProviderFromType(resourceType string) string {
 	if strings.HasPrefix(resourceType, "aws_") {
 		return "aws"
@@ -393,6 +499,16 @@ func (p *Parser) getProviderFromType(resourceType string) string {
 	return "unknown"
 }
 
+// getDatabaseType categorizes database resources by their data model.
+// This classification is important for threat modeling as different database
+// types have different security considerations (SQL injection vs NoSQL injection,
+// encryption at rest capabilities, access control models, etc.).
+//
+// Parameters:
+//   - resourceType: The Terraform resource type for a database
+//
+// Returns:
+//   - Database category: "relational", "nosql", "cache", or "generic"
 func (p *Parser) getDatabaseType(resourceType string) string {
 	if strings.Contains(resourceType, "rds") || strings.Contains(resourceType, "aurora") {
 		return "relational"
@@ -404,6 +520,15 @@ func (p *Parser) getDatabaseType(resourceType string) string {
 	return "generic"
 }
 
+// getNetworkType classifies network resources for security boundary analysis.
+// Network types are crucial for threat modeling as they define isolation
+// boundaries, traffic flow constraints, and potential attack paths.
+//
+// Parameters:
+//   - resourceType: The Terraform resource type for a network component
+//
+// Returns:
+//   - Network category: "vpc", "subnet", or "network"
 func (p *Parser) getNetworkType(resourceType string) string {
 	if strings.Contains(resourceType, "vpc") || strings.Contains(resourceType, "virtual_network") {
 		return "vpc"
@@ -413,6 +538,15 @@ func (p *Parser) getNetworkType(resourceType string) string {
 	return "network"
 }
 
+// getLoadBalancerType identifies the load balancer layer for security analysis.
+// Different load balancer types operate at different OSI layers and have
+// distinct security features (WAF support, SSL termination, DDoS protection).
+//
+// Parameters:
+//   - resourceType: The Terraform resource type for a load balancer
+//
+// Returns:
+//   - Load balancer type: "application" (L7), "network" (L4), or "classic"
 func (p *Parser) getLoadBalancerType(resourceType string) string {
 	if strings.Contains(resourceType, "application") || strings.Contains(resourceType, "alb") {
 		return "application"
@@ -422,33 +556,113 @@ func (p *Parser) getLoadBalancerType(resourceType string) string {
 	return "classic"
 }
 
+// extractTags retrieves resource tags from the HCL configuration body.
+// Tags are critical for threat modeling as they often indicate:
+//   - Environment (prod/dev/staging)
+//   - Data classification (PII, confidential)
+//   - Compliance scope (PCI, HIPAA)
+//   - Ownership and responsibility
+//
+// Parameters:
+//   - body: The HCL body containing the resource configuration
+//
+// Returns:
+//   - Map of tag key-value pairs
+//
+// TODO: Implement actual tag extraction from HCL body attributes
 func (p *Parser) extractTags(body hcl.Body) map[string]string {
-	// This would extract tags from the HCL body
-	// For now, return empty map
+	// This would traverse the body to find "tags" attributes
+	// and extract their key-value pairs
 	return make(map[string]string)
 }
 
+// extractDescription retrieves the description attribute from an HCL body.
+// Descriptions are useful for understanding the purpose of security groups
+// and other resources, which helps in threat modeling and risk assessment.
+//
+// Parameters:
+//   - body: The HCL body containing the resource configuration
+//
+// Returns:
+//   - The description string if found, empty string otherwise
+//
+// TODO: Implement actual description extraction from HCL attributes
 func (p *Parser) extractDescription(body hcl.Body) string {
-	// This would extract description from the HCL body
+	// This would look for "description" attributes in the body
 	return ""
 }
 
+// extractSecurityRules parses security group rules from the HCL configuration.
+// Security rules define network access controls and are critical for identifying
+// potential attack vectors and overly permissive configurations.
+//
+// Parameters:
+//   - body: The HCL body containing security group configuration
+//
+// Returns:
+//   - Slice of SecurityRule structs with ingress/egress rules
+//
+// TODO: Implement parsing of ingress/egress rules with protocols, ports, and sources
 func (p *Parser) extractSecurityRules(body hcl.Body) []ai.SecurityRule {
-	// This would extract security rules from the HCL body
+	// This would parse ingress and egress blocks to extract:
+	// - Protocol (TCP/UDP/ICMP)
+	// - Port ranges
+	// - Source/destination CIDR blocks or security groups
+	// - Rule descriptions
 	return []ai.SecurityRule{}
 }
 
+// extractRuntime identifies the runtime environment for serverless functions.
+// Runtime information is essential for vulnerability assessment as different
+// runtimes have different security characteristics and CVE exposure.
+//
+// Parameters:
+//   - body: The HCL body containing function configuration
+//
+// Returns:
+//   - Runtime string (e.g., "python3.9", "nodejs14.x", "go1.x")
+//
+// TODO: Implement runtime extraction from Lambda and other function resources
 func (p *Parser) extractRuntime(body hcl.Body) string {
-	// This would extract runtime from the HCL body
+	// This would look for "runtime" attributes in function resources
 	return ""
 }
 
+// extractImage retrieves the container image reference from the configuration.
+// Container images are crucial for security analysis to identify:
+//   - Base image vulnerabilities
+//   - Outdated or unpatched images
+//   - Images from untrusted registries
+//
+// Parameters:
+//   - body: The HCL body containing container configuration
+//
+// Returns:
+//   - Full image reference including registry, name, and tag
+//
+// TODO: Implement image extraction from ECS, Kubernetes, and other container resources
 func (p *Parser) extractImage(body hcl.Body) string {
-	// This would extract container image from the HCL body
+	// This would look for "image" attributes in container definitions
 	return ""
 }
 
-// ToThreagileModel converts parsed infrastructure to Threagile model components
+// ToThreagileModel converts the parsed infrastructure components from the IaC format
+// into Threagile's native model format for threat analysis. This method performs
+// the critical mapping between infrastructure resources and security-relevant
+// technical assets.
+//
+// The conversion process:
+//   1. Maps cloud resources to appropriate technical asset types
+//   2. Preserves security-relevant metadata and tags
+//   3. Maintains relationships between components
+//   4. Prepares the model for threat rule evaluation
+//
+// Parameters:
+//   - result: The ParseResult containing all discovered infrastructure
+//
+// Returns:
+//   - *types.Model: A Threagile model ready for threat analysis
+//   - error: Any conversion errors encountered
 func (p *Parser) ToThreagileModel(result *ai.ParseResult) (*types.Model, error) {
 	model := &types.Model{
 		TechnicalAssets: make(map[string]*types.TechnicalAsset),
@@ -525,6 +739,15 @@ func (p *Parser) ToThreagileModel(result *ai.ParseResult) (*types.Model, error) 
 	return model, nil
 }
 
+// convertTags transforms a map of key-value tags into Threagile's tag format.
+// Tags are preserved during conversion as they often contain critical security
+// metadata like environment classification, data sensitivity, and compliance scope.
+//
+// Parameters:
+//   - tags: Map of tag keys to values from the infrastructure resource
+//
+// Returns:
+//   - Slice of formatted tag strings in "key:value" format
 func convertTags(tags map[string]string) []string {
 	result := make([]string, 0, len(tags))
 	for k, v := range tags {
@@ -533,7 +756,20 @@ func convertTags(tags map[string]string) []string {
 	return result
 }
 
-// RegisterParser registers the HCL parser with the parser registry
+// RegisterParser registers the HCL parser with the central parser registry.
+// This allows the AI orchestrator to automatically use this parser for
+// Terraform and other HCL-based infrastructure files.
+//
+// The parser is registered with the name "hcl" and will be selected for:
+//   - Files with .tf extension (Terraform)
+//   - Files with .hcl extension (generic HCL)
+//   - Files with .tf.json extension (JSON-formatted Terraform)
+//
+// Parameters:
+//   - registry: The parser registry to register with
+//
+// Returns:
+//   - error: Registration error if the parser name is already taken
 func RegisterParser(registry *ai.ParserRegistry) error {
 	parser := NewParser()
 	return registry.Register("hcl", parser)

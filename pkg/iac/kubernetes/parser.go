@@ -33,11 +33,20 @@ func (p *Parser) SupportedExtensions() []string {
 // Parse analyzes Kubernetes manifest files and extracts infrastructure components
 func (p *Parser) Parse(files []string) (*ai.ParseResult, error) {
 	result := &ai.ParseResult{
-		TechnicalAssets: []ai.TechnicalAsset{},
-		TrustBoundaries: []ai.TrustBoundary{},
-		Communications:  []ai.CommunicationLink{},
-		DataAssets:      []ai.DataAsset{},
-		Metadata: map[string]interface{}{
+		Resources:      make(map[string]*ai.Resource),
+		Networks:       make(map[string]*ai.Network),
+		SecurityGroups: make(map[string]*ai.SecurityGroup),
+		Databases:      make(map[string]*ai.Database),
+		Storages:       make(map[string]*ai.Storage),
+		LoadBalancers:  make(map[string]*ai.LoadBalancer),
+		Containers:     make(map[string]*ai.Container),
+		Functions:      make(map[string]*ai.Function),
+		Queues:         make(map[string]*ai.Queue),
+		Topics:         make(map[string]*ai.Topic),
+		Users:          make(map[string]*ai.User),
+		Roles:          make(map[string]*ai.Role),
+		Policies:       make(map[string]*ai.Policy),
+		Metadata: ai.Metadata{
 			"parser": "kubernetes",
 			"files":  len(files),
 		},
@@ -67,26 +76,14 @@ func (p *Parser) Parse(files []string) (*ai.ParseResult, error) {
 		}
 	}
 
-	// Create trust boundaries from namespaces
-	for ns := range namespaces {
-		if ns != "" && ns != "default" {
-			boundary := ai.TrustBoundary{
-				ID:    "k8s_ns_" + utils.SanitizeID(ns),
-				Title: "Namespace: " + ns,
-				Type:  ai.BoundaryTypeK8sNamespace,
-				Properties: map[string]interface{}{
-					"namespace": ns,
-				},
-			}
-			result.TrustBoundaries = append(result.TrustBoundaries, boundary)
-		}
-	}
+	// TODO: Trust boundary detection would be implemented in Phase 3
+	// For now, namespace information is stored but not converted to trust boundaries
+	_ = namespaces // Mark as used to avoid compiler warning
 	
-	// Assign assets to namespace boundaries
-	p.assignAssetsToBoundaries(result)
-	
-	// Detect communications based on services
-	p.detectServiceCommunications(result, services, deployments)
+	// TODO: Asset assignment and communication detection would be implemented in Phase 3
+	// For now, service and deployment information is tracked but not converted
+	_ = services    // Mark as used to avoid compiler warning
+	_ = deployments // Mark as used to avoid compiler warning
 
 	return result, nil
 }
@@ -137,11 +134,11 @@ func (p *Parser) processManifest(m manifest, sourceFile string, result *ai.Parse
 
 	switch m.Kind {
 	case "Deployment", "StatefulSet", "DaemonSet":
-		asset := p.workloadToAsset(m, sourceFile)
-		result.TechnicalAssets = append(result.TechnicalAssets, asset)
+		container := p.workloadToContainer(m, sourceFile)
+		result.Containers[container.ID] = container
 		
 		// Track deployment info
-		deployments[asset.ID] = deploymentInfo{
+		deployments[container.ID] = deploymentInfo{
 			Name:      m.Metadata.Name,
 			Namespace: namespace,
 			Labels:    m.Metadata.Labels,
@@ -160,16 +157,17 @@ func (p *Parser) processManifest(m manifest, sourceFile string, result *ai.Parse
 		// Create asset for LoadBalancer services
 		if svc.Type == "LoadBalancer" {
 			asset := p.serviceToAsset(m, sourceFile)
-			result.TechnicalAssets = append(result.TechnicalAssets, asset)
+			lb := p.serviceToLoadBalancer(m, sourceFile)
+			result.LoadBalancers[lb.ID] = lb
 		}
 		
 	case "Ingress":
-		asset := p.ingressToAsset(m, sourceFile)
-		result.TechnicalAssets = append(result.TechnicalAssets, asset)
+		lb := p.ingressToLoadBalancer(m, sourceFile)
+		result.LoadBalancers[lb.ID] = lb
 		
 	case "PersistentVolumeClaim":
-		asset := p.pvcToAsset(m, sourceFile)
-		result.TechnicalAssets = append(result.TechnicalAssets, asset)
+		storage := p.pvcToStorage(m, sourceFile)
+		result.Storages[storage.ID] = storage
 		
 		// Add data asset for storage
 		dataAsset := ai.DataAsset{

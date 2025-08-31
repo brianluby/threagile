@@ -103,7 +103,7 @@ func (o *orchestrator) ParseDirectories(dirs []string) ([]*ParseResult, error) {
 	var allResults []*ParseResult
 
 	// Group files by parser
-	filesByParser := make(map[Parser][]string)
+	filesByParser := make(map[IaCParser][]string)
 
 	// Scan all directories
 	for _, dir := range dirs {
@@ -118,15 +118,23 @@ func (o *orchestrator) ParseDirectories(dirs []string) ([]*ParseResult, error) {
 			continue
 		}
 
-		fmt.Printf("Parsing %d %s files...\n", len(files), parser.Name())
+		fmt.Printf("Parsing %d files...\n", len(files))
 		
-		result, err := parser.Parse(files)
-		if err != nil {
-			return nil, fmt.Errorf("parser %s failed: %w", parser.Name(), err)
-		}
+		// Parse each file individually
+		for _, file := range files {
+			content, err := os.ReadFile(file)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read file %s: %w", file, err)
+			}
+			
+			result, err := parser.ParseFile(file, content)
+			if err != nil {
+				return nil, fmt.Errorf("parser failed on file %s: %w", file, err)
+			}
 
-		if result != nil {
-			allResults = append(allResults, result)
+			if result != nil {
+				allResults = append(allResults, result)
+			}
 		}
 	}
 
@@ -134,7 +142,7 @@ func (o *orchestrator) ParseDirectories(dirs []string) ([]*ParseResult, error) {
 }
 
 // scanDirectory recursively scans a directory and groups files by parser
-func (o *orchestrator) scanDirectory(dir string, filesByParser map[Parser][]string) error {
+func (o *orchestrator) scanDirectory(dir string, filesByParser map[IaCParser][]string) error {
 	return filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -146,8 +154,8 @@ func (o *orchestrator) scanDirectory(dir string, filesByParser map[Parser][]stri
 		}
 
 		// Find appropriate parser
-		parser, err := o.registry.GetParserForFile(path)
-		if err != nil {
+		parser, found := o.registry.GetParserForFile(path)
+		if !found {
 			// No parser for this file type, skip it
 			return nil
 		}

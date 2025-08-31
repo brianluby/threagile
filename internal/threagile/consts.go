@@ -102,5 +102,7 @@ const (
 		" - graphics-go (BSD License): https://github.com/BurntSushi/graphics-go/blob/master/LICENSE\n" +
 		" - google-uuid (BSD License): https://github.com/google/uuid/blob/master/LICENSE\n" +
 		" - gin-gonic (MIT License): https://github.com/gin-gonic/gin/blob/master/LICENSE\n" +
-		" - cobra-cli (Apache License): https://github.com/spf13/cobra-cli/blob/main/LICENSE.txt\n"
+		" - cobra-cli (Apache License): https://github.com/spf13/cobra-cli/blob/main/LICENSE.txt\n" +
+		" - hashicorp-hcl (MPL 2.0 License): https://github.com/hashicorp/hcl/blob/main/LICENSE\n" +
+		" - aws-goformation (Apache License): https://github.com/awslabs/goformation/blob/master/LICENSE\n"
 )

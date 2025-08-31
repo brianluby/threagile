@@ -38,30 +38,58 @@ func (g *SimpleGenerator) Generate(results []*ParseResult, options GeneratorOpti
 		}
 	}
 
-	// Merge all assets from parse results
-	allAssets := []TechnicalAsset{}
+	// Convert IaC resources to technical assets
 	for _, result := range results {
-		allAssets = append(allAssets, result.TechnicalAssets...)
+		// Convert generic resources
+		for _, res := range result.Resources {
+			asset := g.resourceToTechnicalAsset(res)
+			model.TechnicalAssets[asset.Id] = asset
+		}
 		
-		// Convert and add data assets
-		for _, da := range result.DataAssets {
-			model.DataAssets[da.ID] = &types.DataAsset{
-				Id:    da.ID,
-				Title: da.Title,
-				Confidentiality: da.Classification,
-				Quantity:        da.Quantity,
-				Tags:            da.Tags,
-			}
+		// Convert databases
+		for _, db := range result.Databases {
+			asset := g.databaseToTechnicalAsset(db)
+			model.TechnicalAssets[asset.Id] = asset
+			
+			// Also create data asset for database
+			dataAsset := g.createDataAsset(db)
+			model.DataAssets[dataAsset.Id] = dataAsset
+		}
+		
+		// Convert containers
+		for _, container := range result.Containers {
+			asset := g.containerToTechnicalAsset(container)
+			model.TechnicalAssets[asset.Id] = asset
+		}
+		
+		// Convert functions
+		for _, fn := range result.Functions {
+			asset := g.functionToTechnicalAsset(fn)
+			model.TechnicalAssets[asset.Id] = asset
+		}
+		
+		// Convert load balancers
+		for _, lb := range result.LoadBalancers {
+			asset := g.loadBalancerToTechnicalAsset(lb)
+			model.TechnicalAssets[asset.Id] = asset
 		}
 	}
 
-	// Detect trust boundaries if not explicitly provided
-	boundaries := []TrustBoundary{}
-	for _, result := range results {
-		boundaries = append(boundaries, result.TrustBoundaries...)
+	// Detect trust boundaries using the boundary detector
+	// First collect all technical assets for boundary detection
+	technicalAssets := make([]TechnicalAsset, 0)
+	for _, asset := range model.TechnicalAssets {
+		technicalAssets = append(technicalAssets, TechnicalAsset{
+			ID:    asset.Id,
+			Title: asset.Title,
+			Type:  AssetType(asset.Type.String()),
+			Tags:  asset.Tags,
+		})
 	}
-	if len(boundaries) == 0 && g.boundaryDetector != nil {
-		boundaries = g.boundaryDetector.DetectBoundaries(allAssets)
+	
+	boundaries := []TrustBoundary{}
+	if g.boundaryDetector != nil && len(technicalAssets) > 0 {
+		boundaries = g.boundaryDetector.DetectBoundaries(technicalAssets)
 	}
 
 	// Convert trust boundaries
@@ -77,54 +105,112 @@ func (g *SimpleGenerator) Generate(results []*ParseResult, options GeneratorOpti
 		model.TrustBoundaries[tb.ID] = trustBoundary
 	}
 
-	// Convert technical assets and assign to boundaries
-	for _, asset := range allAssets {
-		ta := &types.TechnicalAsset{
-			Id:          asset.ID,
-			Title:       asset.Title,
-			Technologies: types.TechnologyList{mapTechnology(asset.Type)},
-			Machine:     asset.Machine,
-			Internet:    asset.Internet,
-			Encryption:  asset.Encryption,
-			Tags:        asset.Tags,
-			CommunicationLinks: []*types.CommunicationLink{},
-		}
-		
-		// Simple mode defaults
-		ta.Size = types.Application
-		ta.Type = types.Process
-		ta.MultiTenant = false
-		
-		model.TechnicalAssets[asset.ID] = ta
-		
-		// Assign to boundary
-		boundaryID := findBoundaryForAsset(asset, boundaries)
-		if boundaryID != "" && model.TrustBoundaries[boundaryID] != nil {
-			model.TrustBoundaries[boundaryID].TechnicalAssetsInside = 
-				append(model.TrustBoundaries[boundaryID].TechnicalAssetsInside, asset.ID)
+	// Assign technical assets to trust boundaries
+	for _, ta := range model.TechnicalAssets {
+		// Find appropriate boundary for this asset
+		for _, tb := range model.TrustBoundaries {
+			// Simple assignment: put all assets in the first trust boundary
+			// In detailed mode, this would be more sophisticated
+			tb.TechnicalAssetsInside = append(tb.TechnicalAssetsInside, ta.Id)
+			break
 		}
 	}
 
-	// Convert communication links
-	for _, result := range results {
-		for _, comm := range result.Communications {
-			link := types.CommunicationLink{
-				Id:          comm.ID,
-				Title:       comm.Title,
-				TargetId:    comm.TargetID,
-				Protocol:    comm.Protocol,
-				Authentication: comm.Authentication,
-				DataAssetsSent: comm.DataAssets,
-			}
-			
-			// Add link to source asset
-			if srcAsset, ok := model.TechnicalAssets[comm.SourceID]; ok {
-				srcAsset.CommunicationLinks = append(srcAsset.CommunicationLinks, &link)
-			}
-		}
-	}
+	// In simple mode, we don't generate communication links
+	// Those would be added in detailed mode or by the user
 
 	return model, nil
+}
+
+// Helper conversion methods
+func (g *SimpleGenerator) resourceToTechnicalAsset(res *Resource) *types.TechnicalAsset {
+	return &types.TechnicalAsset{
+		Id:    res.ID,
+		Title: res.Name,
+		Type:  types.Process,
+		Size:  types.Application,
+		Technologies: types.TechnologyList{
+			mapResourceTypeToTechnology(res.Type),
+		},
+		Tags: convertTags(res.Tags),
+		CommunicationLinks: []*types.CommunicationLink{},
+	}
+}
+
+func (g *SimpleGenerator) databaseToTechnicalAsset(db *Database) *types.TechnicalAsset {
+	return &types.TechnicalAsset{
+		Id:    db.ID,
+		Title: db.Name,
+		Type:  types.Datastore,
+		Size:  types.System,
+		Technologies: types.TechnologyList{
+			mapDatabaseTypeToTechnology(db.Type),
+		},
+		Encryption: types.Transparent,
+		Tags: convertTags(db.Tags),
+		CommunicationLinks: []*types.CommunicationLink{},
+	}
+}
+
+func (g *SimpleGenerator) containerToTechnicalAsset(container *Container) *types.TechnicalAsset {
+	return &types.TechnicalAsset{
+		Id:    container.ID,
+		Title: container.Name,
+		Type:  types.Process,
+		Size:  types.Service,
+		Machine: types.Container,
+		Technologies: types.TechnologyList{
+			&types.Technology{Name: "docker"},
+		},
+		Tags: convertTags(container.Tags),
+		CommunicationLinks: []*types.CommunicationLink{},
+	}
+}
+
+func (g *SimpleGenerator) functionToTechnicalAsset(fn *Function) *types.TechnicalAsset {
+	return &types.TechnicalAsset{
+		Id:    fn.ID,
+		Title: fn.Name,
+		Type:  types.Process,
+		Size:  types.Service,
+		Machine: types.Serverless,
+		Technologies: types.TechnologyList{
+			mapFunctionRuntimeToTechnology(fn.Runtime),
+		},
+		Tags: convertTags(fn.Tags),
+		CommunicationLinks: []*types.CommunicationLink{},
+	}
+}
+
+func (g *SimpleGenerator) loadBalancerToTechnicalAsset(lb *LoadBalancer) *types.TechnicalAsset {
+	return &types.TechnicalAsset{
+		Id:    lb.ID,
+		Title: lb.Name,
+		Type:  types.Process,
+		Size:  types.Component,
+		Technologies: types.TechnologyList{
+			&types.Technology{Name: "load-balancer"},
+		},
+		Internet: lb.Type == "internet-facing",
+		Tags: convertTags(lb.Tags),
+		CommunicationLinks: []*types.CommunicationLink{},
+	}
+}
+
+func (g *SimpleGenerator) createDataAsset(db *Database) *types.DataAsset {
+	return &types.DataAsset{
+		Id:    fmt.Sprintf("data-%s", db.ID),
+		Title: fmt.Sprintf("%s Data", db.Name),
+		Description: fmt.Sprintf("Data stored in %s database", db.Name),
+		Usage: types.Business,
+		Tags: convertTags(db.Tags),
+		Origin: "IaC",
+		Owner: "system",
+		Quantity: types.Many,
+		Confidentiality: types.Confidential,
+		Integrity: types.Critical,
+		Availability: types.Critical,
+	}
 }
 
 // SimpleBoundaryDetector implements basic trust boundary detection
@@ -209,6 +295,57 @@ func findBoundaryForAsset(asset TechnicalAsset, boundaries []TrustBoundary) stri
 		}
 	}
 	return ""
+}
+
+// Additional helper functions
+func convertTags(tags map[string]string) []string {
+	result := make([]string, 0, len(tags))
+	for k, v := range tags {
+		result = append(result, fmt.Sprintf("%s:%s", k, v))
+	}
+	return result
+}
+
+func mapResourceTypeToTechnology(resourceType string) *types.Technology {
+	// Map common resource types to technologies
+	switch strings.ToLower(resourceType) {
+	case "aws_instance", "ec2":
+		return &types.Technology{Name: types.UnknownTechnology}
+	case "aws_lambda":
+		return &types.Technology{Name: types.UnknownTechnology}
+	default:
+		return &types.Technology{Name: types.UnknownTechnology}
+	}
+}
+
+func mapDatabaseTypeToTechnology(dbType string) *types.Technology {
+	switch strings.ToLower(dbType) {
+	case "mysql":
+		return &types.Technology{Name: "mysql"}
+	case "postgres", "postgresql":
+		return &types.Technology{Name: "postgresql"}
+	case "dynamodb":
+		return &types.Technology{Name: types.UnknownTechnology} // Would need to add DynamoDB
+	case "mongodb":
+		return &types.Technology{Name: "mongodb"}
+	default:
+		return &types.Technology{Name: types.UnknownTechnology}
+	}
+}
+
+func mapFunctionRuntimeToTechnology(runtime string) *types.Technology {
+	switch {
+	case strings.Contains(runtime, "python"):
+		return &types.Technology{Name: types.UnknownTechnology} // Would need Python technology
+	case strings.Contains(runtime, "node"):
+		return &types.Technology{Name: "nodejs"}
+	case strings.Contains(runtime, "java"):
+		return &types.Technology{Name: types.UnknownTechnology} // Would need Java technology
+	case strings.Contains(runtime, "go"):
+		return &types.Technology{Name: types.UnknownTechnology} // Would need Go technology
+	default:
+		return &types.Technology{Name: types.UnknownTechnology}
+	}
 }
 
 func detectBoundaryKey(asset TechnicalAsset) string {

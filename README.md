@@ -144,3 +144,9 @@ The information about releases can be found at [releases page](./docs/releases.m
 You are very welcome to contribute into the project in any way. If you'd like to add new feature or fix the bug in the code base  please follow [contribution guide](./CONTRIBUTING.md).
 
 Otherwise please create GitHub discussion or issue and contributors will find some time to respond.
+
+## License
+
+Threagile is licensed under the MIT License. See [LICENSE.txt](LICENSE.txt) for the full license text.
+
+For information about third-party components and their licenses, see [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).

@@ -3,9 +3,11 @@ module github.com/threagile/threagile
 go 1.24.2
 
 require (
+	github.com/awslabs/goformation/v7 v7.14.9
 	github.com/chzyer/readline v1.5.1
 	github.com/gin-gonic/gin v1.10.0
 	github.com/google/uuid v1.6.0
+	github.com/hashicorp/hcl/v2 v2.24.0
 	github.com/jung-kurt/gofpdf v1.16.2
 	github.com/mattn/go-shellwords v1.0.12
 	github.com/mpvl/unique v0.0.0-20150818121801-cbe035fff7de
@@ -28,7 +30,6 @@ require (
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
-	github.com/hashicorp/hcl/v2 v2.24.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect

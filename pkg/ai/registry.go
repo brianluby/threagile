@@ -13,8 +13,8 @@ type registry struct {
 	parsers map[string]Parser
 }
 
-// NewParserRegistry creates a new parser registry
-func NewParserRegistry() ParserRegistry {
+// NewRegistry creates a new parser registry implementation
+func NewRegistry() *registry {
 	return &registry{
 		parsers: make(map[string]Parser),
 	}

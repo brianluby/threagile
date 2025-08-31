@@ -9,8 +9,8 @@ import (
 	"github.com/threagile/threagile/pkg/types"
 )
 
-// TrustBoundaryDetector implements advanced trust boundary detection algorithms
-type TrustBoundaryDetector struct {
+// BoundaryDetector implements advanced trust boundary detection algorithms
+type BoundaryDetector struct {
 	// Graph representation of the infrastructure
 	nodes map[string]*GraphNode
 	edges map[string][]*GraphEdge
@@ -44,16 +44,16 @@ type Community struct {
 	Trust    float64
 }
 
-// NewTrustBoundaryDetector creates a new trust boundary detector
-func NewTrustBoundaryDetector() *TrustBoundaryDetector {
-	return &TrustBoundaryDetector{
+// NewBoundaryDetector creates a new trust boundary detector
+func NewBoundaryDetector() *BoundaryDetector {
+	return &BoundaryDetector{
 		nodes: make(map[string]*GraphNode),
 		edges: make(map[string][]*GraphEdge),
 	}
 }
 
 // DetectBoundaries detects trust boundaries in the infrastructure
-func (d *TrustBoundaryDetector) DetectBoundaries(model *types.Model, results []*ParseResult) ([]*types.TrustBoundary, error) {
+func (d *BoundaryDetector) DetectBoundaries(model *types.Model, results []*ParseResult) ([]*types.TrustBoundary, error) {
 	// Build graph from infrastructure
 	d.buildGraph(model, results)
 	
@@ -98,7 +98,7 @@ func (d *TrustBoundaryDetector) DetectBoundaries(model *types.Model, results []*
 }
 
 // buildGraph builds a graph representation of the infrastructure
-func (d *TrustBoundaryDetector) buildGraph(model *types.Model, results []*ParseResult) {
+func (d *BoundaryDetector) buildGraph(model *types.Model, results []*ParseResult) {
 	// Add nodes for technical assets
 	for id, asset := range model.TechnicalAssets {
 		d.nodes[id] = &GraphNode{
@@ -135,7 +135,7 @@ func (d *TrustBoundaryDetector) buildGraph(model *types.Model, results []*ParseR
 }
 
 // detectNetworkBoundaries detects boundaries based on network segmentation
-func (d *TrustBoundaryDetector) detectNetworkBoundaries(results []*ParseResult) []*types.TrustBoundary {
+func (d *BoundaryDetector) detectNetworkBoundaries(results []*ParseResult) []*types.TrustBoundary {
 	boundaries := []*types.TrustBoundary{}
 	
 	for _, result := range results {
@@ -191,7 +191,7 @@ func (d *TrustBoundaryDetector) detectNetworkBoundaries(results []*ParseResult) 
 }
 
 // detectIAMBoundaries detects boundaries based on IAM configurations
-func (d *TrustBoundaryDetector) detectIAMBoundaries(results []*ParseResult) []*types.TrustBoundary {
+func (d *BoundaryDetector) detectIAMBoundaries(results []*ParseResult) []*types.TrustBoundary {
 	boundaries := []*types.TrustBoundary{}
 	
 	for _, result := range results {
@@ -228,7 +228,7 @@ func (d *TrustBoundaryDetector) detectIAMBoundaries(results []*ParseResult) []*t
 }
 
 // detectProviderBoundaries detects boundaries between different cloud providers
-func (d *TrustBoundaryDetector) detectProviderBoundaries(results []*ParseResult) []*types.TrustBoundary {
+func (d *BoundaryDetector) detectProviderBoundaries(results []*ParseResult) []*types.TrustBoundary {
 	boundaries := []*types.TrustBoundary{}
 	
 	// Group resources by provider
@@ -265,7 +265,7 @@ func (d *TrustBoundaryDetector) detectProviderBoundaries(results []*ParseResult)
 }
 
 // detectSecurityZoneBoundaries detects boundaries based on security zones
-func (d *TrustBoundaryDetector) detectSecurityZoneBoundaries(model *types.Model, results []*ParseResult) []*types.TrustBoundary {
+func (d *BoundaryDetector) detectSecurityZoneBoundaries(model *types.Model, results []*ParseResult) []*types.TrustBoundary {
 	boundaries := []*types.TrustBoundary{}
 	
 	// Define security zones
@@ -319,7 +319,7 @@ func (d *TrustBoundaryDetector) detectSecurityZoneBoundaries(model *types.Model,
 }
 
 // detectCommunityBoundaries uses graph algorithms to detect community boundaries
-func (d *TrustBoundaryDetector) detectCommunityBoundaries() []*types.TrustBoundary {
+func (d *BoundaryDetector) detectCommunityBoundaries() []*types.TrustBoundary {
 	boundaries := []*types.TrustBoundary{}
 	
 	// Apply community detection algorithm (simplified Louvain method)
@@ -347,7 +347,7 @@ func (d *TrustBoundaryDetector) detectCommunityBoundaries() []*types.TrustBounda
 }
 
 // detectDataFlowBoundaries detects boundaries based on data flow patterns
-func (d *TrustBoundaryDetector) detectDataFlowBoundaries(model *types.Model) []*types.TrustBoundary {
+func (d *BoundaryDetector) detectDataFlowBoundaries(model *types.Model) []*types.TrustBoundary {
 	boundaries := []*types.TrustBoundary{}
 	
 	// Analyze data flow patterns
@@ -374,7 +374,7 @@ func (d *TrustBoundaryDetector) detectDataFlowBoundaries(model *types.Model) []*
 }
 
 // detectComplianceBoundaries detects boundaries based on compliance requirements
-func (d *TrustBoundaryDetector) detectComplianceBoundaries(model *types.Model, results []*ParseResult) []*types.TrustBoundary {
+func (d *BoundaryDetector) detectComplianceBoundaries(model *types.Model, results []*ParseResult) []*types.TrustBoundary {
 	boundaries := []*types.TrustBoundary{}
 	
 	// Define compliance boundaries
@@ -423,7 +423,7 @@ func (d *TrustBoundaryDetector) detectComplianceBoundaries(model *types.Model, r
 }
 
 // mergeBoundaries merges overlapping boundaries
-func (d *TrustBoundaryDetector) mergeBoundaries(boundaries []*types.TrustBoundary) []*types.TrustBoundary {
+func (d *BoundaryDetector) mergeBoundaries(boundaries []*types.TrustBoundary) []*types.TrustBoundary {
 	merged := []*types.TrustBoundary{}
 	processed := make(map[string]bool)
 	
@@ -455,7 +455,7 @@ func (d *TrustBoundaryDetector) mergeBoundaries(boundaries []*types.TrustBoundar
 }
 
 // validateAndRankBoundaries validates and ranks boundaries by importance
-func (d *TrustBoundaryDetector) validateAndRankBoundaries(boundaries []*types.TrustBoundary, model *types.Model) []*types.TrustBoundary {
+func (d *BoundaryDetector) validateAndRankBoundaries(boundaries []*types.TrustBoundary, model *types.Model) []*types.TrustBoundary {
 	// Calculate scores for each boundary
 	type scoredBoundary struct {
 		boundary *types.TrustBoundary
@@ -490,7 +490,7 @@ func (d *TrustBoundaryDetector) validateAndRankBoundaries(boundaries []*types.Tr
 
 // Helper methods
 
-func (d *TrustBoundaryDetector) assetToProperties(asset *types.TechnicalAsset) map[string]interface{} {
+func (d *BoundaryDetector) assetToProperties(asset *types.TechnicalAsset) map[string]interface{} {
 	return map[string]interface{}{
 		"type":  asset.Type,
 		"title": asset.Title,
@@ -498,7 +498,7 @@ func (d *TrustBoundaryDetector) assetToProperties(asset *types.TechnicalAsset) m
 	}
 }
 
-func (d *TrustBoundaryDetector) calculateTrustLevel(asset *types.TechnicalAsset) float64 {
+func (d *BoundaryDetector) calculateTrustLevel(asset *types.TechnicalAsset) float64 {
 	// Calculate trust level based on asset properties
 	trust := 0.5 // Default trust
 	
@@ -529,7 +529,7 @@ func (d *TrustBoundaryDetector) calculateTrustLevel(asset *types.TechnicalAsset)
 	return math.Max(0, math.Min(1, trust))
 }
 
-func (d *TrustBoundaryDetector) determineAssetZone(asset *types.TechnicalAsset) string {
+func (d *BoundaryDetector) determineAssetZone(asset *types.TechnicalAsset) string {
 	// Determine security zone from tags
 	for _, tag := range asset.Tags {
 		if strings.HasPrefix(tag, "zone:") {
@@ -547,7 +547,7 @@ func (d *TrustBoundaryDetector) determineAssetZone(asset *types.TechnicalAsset) 
 	return "private"
 }
 
-func (d *TrustBoundaryDetector) determineAssetProvider(asset *types.TechnicalAsset) string {
+func (d *BoundaryDetector) determineAssetProvider(asset *types.TechnicalAsset) string {
 	// Determine cloud provider from tags
 	for _, tag := range asset.Tags {
 		if strings.HasPrefix(tag, "provider:") {
@@ -557,7 +557,7 @@ func (d *TrustBoundaryDetector) determineAssetProvider(asset *types.TechnicalAss
 	return "unknown"
 }
 
-func (d *TrustBoundaryDetector) calculateEdgeWeight(link *types.CommunicationLink) float64 {
+func (d *BoundaryDetector) calculateEdgeWeight(link *types.CommunicationLink) float64 {
 	weight := 1.0
 	
 	// Adjust based on protocol
@@ -573,7 +573,7 @@ func (d *TrustBoundaryDetector) calculateEdgeWeight(link *types.CommunicationLin
 	return weight
 }
 
-func (d *TrustBoundaryDetector) linkToProperties(link *types.CommunicationLink) map[string]interface{} {
+func (d *BoundaryDetector) linkToProperties(link *types.CommunicationLink) map[string]interface{} {
 	return map[string]interface{}{
 		"protocol":       link.Protocol,
 		"authentication": link.Authentication,
@@ -581,7 +581,7 @@ func (d *TrustBoundaryDetector) linkToProperties(link *types.CommunicationLink) 
 	}
 }
 
-func (d *TrustBoundaryDetector) addInfrastructureNodes(result *ParseResult) {
+func (d *BoundaryDetector) addInfrastructureNodes(result *ParseResult) {
 	// Add nodes for infrastructure resources
 	for id, resource := range result.Resources {
 		if _, exists := d.nodes[id]; !exists {
@@ -594,12 +594,12 @@ func (d *TrustBoundaryDetector) addInfrastructureNodes(result *ParseResult) {
 	}
 }
 
-func (d *TrustBoundaryDetector) addInfrastructureEdges(result *ParseResult) {
+func (d *BoundaryDetector) addInfrastructureEdges(result *ParseResult) {
 	// Add edges based on infrastructure relationships
 	// This would analyze dependencies and connections
 }
 
-func (d *TrustBoundaryDetector) findAssetsInNetwork(network *Network) []string {
+func (d *BoundaryDetector) findAssetsInNetwork(network *Network) []string {
 	assets := []string{}
 	// Find assets that belong to this network
 	for id, node := range d.nodes {
@@ -611,7 +611,7 @@ func (d *TrustBoundaryDetector) findAssetsInNetwork(network *Network) []string {
 	return assets
 }
 
-func (d *TrustBoundaryDetector) groupSubnetsByType(networks map[string]*Network) map[string][]*Network {
+func (d *BoundaryDetector) groupSubnetsByType(networks map[string]*Network) map[string][]*Network {
 	groups := make(map[string][]*Network)
 	
 	for _, network := range networks {
@@ -634,14 +634,14 @@ func (d *TrustBoundaryDetector) groupSubnetsByType(networks map[string]*Network)
 	return groups
 }
 
-func (d *TrustBoundaryDetector) groupResourcesByIAMRole(result *ParseResult) map[string][]*Resource {
+func (d *BoundaryDetector) groupResourcesByIAMRole(result *ParseResult) map[string][]*Resource {
 	groups := make(map[string][]*Resource)
 	// Group resources by their IAM roles
 	// This would require analyzing IAM attachments
 	return groups
 }
 
-func (d *TrustBoundaryDetector) determineSecurityZone(asset *types.TechnicalAsset) string {
+func (d *BoundaryDetector) determineSecurityZone(asset *types.TechnicalAsset) string {
 	// Determine security zone based on asset properties
 	zone := d.determineAssetZone(asset)
 	
@@ -659,7 +659,7 @@ func (d *TrustBoundaryDetector) determineSecurityZone(asset *types.TechnicalAsse
 	return zone
 }
 
-func (d *TrustBoundaryDetector) detectCommunities() []*Community {
+func (d *BoundaryDetector) detectCommunities() []*Community {
 	communities := []*Community{}
 	
 	// Simplified community detection algorithm
@@ -707,7 +707,7 @@ func (d *TrustBoundaryDetector) detectCommunities() []*Community {
 	return communities
 }
 
-func (d *TrustBoundaryDetector) analyzeDataFlowPatterns(model *types.Model) map[string][]string {
+func (d *BoundaryDetector) analyzeDataFlowPatterns(model *types.Model) map[string][]string {
 	patterns := make(map[string][]string)
 	
 	// Analyze communication links to find data flow patterns
@@ -744,7 +744,7 @@ func (d *TrustBoundaryDetector) analyzeDataFlowPatterns(model *types.Model) map[
 	return patterns
 }
 
-func (d *TrustBoundaryDetector) determineComplianceRequirement(asset *types.TechnicalAsset, dataAssets map[string]*types.DataAsset) []string {
+func (d *BoundaryDetector) determineComplianceRequirement(asset *types.TechnicalAsset, dataAssets map[string]*types.DataAsset) []string {
 	requirements := []string{}
 	
 	// Check asset tags
@@ -781,7 +781,7 @@ func (d *TrustBoundaryDetector) determineComplianceRequirement(asset *types.Tech
 	return requirements
 }
 
-func (d *TrustBoundaryDetector) calculateOverlap(b1, b2 *types.TrustBoundary) float64 {
+func (d *BoundaryDetector) calculateOverlap(b1, b2 *types.TrustBoundary) float64 {
 	// Calculate overlap between two boundaries based on contained assets
 	set1 := make(map[string]bool)
 	for _, asset := range b1.TechnicalAssetsInside {
@@ -803,7 +803,7 @@ func (d *TrustBoundaryDetector) calculateOverlap(b1, b2 *types.TrustBoundary) fl
 	return float64(overlap) / float64(total)
 }
 
-func (d *TrustBoundaryDetector) mergeTwoBoundaries(b1, b2 *types.TrustBoundary) *types.TrustBoundary {
+func (d *BoundaryDetector) mergeTwoBoundaries(b1, b2 *types.TrustBoundary) *types.TrustBoundary {
 	// Merge two boundaries
 	merged := &types.TrustBoundary{
 		Id:          fmt.Sprintf("%s-%s", b1.Id, b2.Id),
@@ -829,7 +829,7 @@ func (d *TrustBoundaryDetector) mergeTwoBoundaries(b1, b2 *types.TrustBoundary) 
 	return merged
 }
 
-func (d *TrustBoundaryDetector) calculateBoundaryScore(boundary *types.TrustBoundary, model *types.Model) float64 {
+func (d *BoundaryDetector) calculateBoundaryScore(boundary *types.TrustBoundary, model *types.Model) float64 {
 	score := 0.0
 	
 	// Score based on number of assets

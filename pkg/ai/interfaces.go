@@ -16,14 +16,7 @@ type Parser interface {
 	Name() string
 }
 
-// ParseResult contains discovered infrastructure elements
-type ParseResult struct {
-	TechnicalAssets []TechnicalAsset    `json:"technical_assets,omitempty"`
-	TrustBoundaries []TrustBoundary     `json:"trust_boundaries,omitempty"`
-	Communications  []CommunicationLink `json:"communications,omitempty"`
-	DataAssets      []DataAsset         `json:"data_assets,omitempty"`
-	Metadata        map[string]interface{} `json:"metadata,omitempty"`
-}
+// ParseResult is defined in iac_types.go for IaC parsers
 
 // Generator creates Threagile models from parsed data
 type Generator interface {
@@ -52,20 +45,7 @@ type AIContextReader interface {
 	SupportedFiles() []string
 }
 
-// ParserRegistry manages available parsers
-type ParserRegistry interface {
-	// Register adds a parser to the registry
-	Register(parser Parser) error
-	
-	// GetParser returns a parser by name
-	GetParser(name string) (Parser, error)
-	
-	// GetParserForFile returns appropriate parser for a file
-	GetParserForFile(filePath string) (Parser, error)
-	
-	// ListParsers returns all registered parser names
-	ListParsers() []string
-}
+// ParserRegistry is defined in iac_types.go
 
 // Orchestrator coordinates the AI model generation process
 type Orchestrator interface {

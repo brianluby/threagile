@@ -9,7 +9,7 @@ import (
 )
 
 func TestTrustBoundaryDetector_DetectBoundaries(t *testing.T) {
-	detector := NewTrustBoundaryDetector()
+	detector := NewBoundaryDetector()
 
 	tests := []struct {
 		name    string
@@ -333,7 +333,7 @@ func TestTrustBoundaryDetector_DetectBoundaries(t *testing.T) {
 }
 
 func TestTrustBoundaryDetector_CalculateTrustLevel(t *testing.T) {
-	detector := NewTrustBoundaryDetector()
+	detector := NewBoundaryDetector()
 
 	tests := []struct {
 		name      string
@@ -399,7 +399,7 @@ func TestTrustBoundaryDetector_CalculateTrustLevel(t *testing.T) {
 }
 
 func TestTrustBoundaryDetector_DetermineSecurityZone(t *testing.T) {
-	detector := NewTrustBoundaryDetector()
+	detector := NewBoundaryDetector()
 
 	tests := []struct {
 		name     string
@@ -465,7 +465,7 @@ func TestTrustBoundaryDetector_DetermineSecurityZone(t *testing.T) {
 }
 
 func TestTrustBoundaryDetector_CalculateOverlap(t *testing.T) {
-	detector := NewTrustBoundaryDetector()
+	detector := NewBoundaryDetector()
 
 	tests := []struct {
 		name        string
@@ -534,7 +534,7 @@ func TestTrustBoundaryDetector_CalculateOverlap(t *testing.T) {
 }
 
 func TestTrustBoundaryDetector_CalculateBoundaryScore(t *testing.T) {
-	detector := NewTrustBoundaryDetector()
+	detector := NewBoundaryDetector()
 
 	tests := []struct {
 		name         string
@@ -603,7 +603,7 @@ func TestTrustBoundaryDetector_CalculateBoundaryScore(t *testing.T) {
 }
 
 func TestTrustBoundaryDetector_MergeBoundaries(t *testing.T) {
-	detector := NewTrustBoundaryDetector()
+	detector := NewBoundaryDetector()
 
 	boundaries := []*types.TrustBoundary{
 		{
